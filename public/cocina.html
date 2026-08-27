@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Cocina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .cocina-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .pedido-cocina {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .pedido-cocina.confirmado { border-left: 4px solid var(--accent); }
+    .pedido-cocina.en_preparacion { border-left: 4px solid #e8b22a; }
+    .pedido-cocina-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pedido-cocina-num {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .pedido-cocina-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .pedido-cocina-item {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .pedido-cocina-item .obs {
+      display: block;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .pedido-cocina-obs-general {
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .pedido-cocina-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--text-muted);
+      padding: 60px 0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand">🍔 BURGER POINT</span>
+    <div class="navbar-right">
+      <span class="navbar-role">Cocina</span>
+      <button class="btn btn-secondary" onclick="cargarPedidosCocina()" style="padding:6px 14px;font-size:13px;">↻ Actualizar</button>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="cocina-grid" id="cocina-grid">
+    <div class="empty-state">Cargando pedidos...</div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      if (!requireAuth(['cocina', 'encargado', 'propietario'])) return
+      cargarPedidosCocina()
+      setInterval(cargarPedidosCocina, 15000) // auto-actualiza cada 15s
+    })
+
+    async function cargarPedidosCocina() {
+      const data = await api('/api/pedidos')
+      if (!data) return
+
+      const pedidos = (data.pedidos || []).filter(p =>
+        p.estado === 'confirmado' || p.estado === 'en_preparacion'
+      )
+
+      const grid = document.getElementById('cocina-grid')
+
+      if (pedidos.length === 0) {
+        grid.innerHTML = `<div class="empty-state">No hay pedidos pendientes en cocina 🎉</div>`
+        return
+      }
+
+      grid.innerHTML = pedidos.map(p => `
+        <div class="pedido-cocina ${p.estado}">
+          <div class="pedido-cocina-header">
+            <span class="pedido-cocina-num">#${p.numero_pedido}</span>
+            <span class="pedido-cocina-meta">${p.canal}</span>
+          </div>
+          <div class="pedido-cocina-items">
+            ${p.pedido_items?.map(i => `
+              <div class="pedido-cocina-item">
+                ${i.cantidad}x ${i.productos?.nombre}
+                ${i.observacion ? `<span class="obs">${i.observacion}</span>` : ''}
+              </div>
+            `).join('') || ''}
+          </div>
+          ${p.observaciones ? `<div class="pedido-cocina-obs-general">📝 ${p.observaciones}</div>` : ''}
+          <span class="pedido-cocina-meta">${formatFecha(p.creado_en)}</span>
+          <button class="btn ${p.estado === 'confirmado' ? 'btn-primary' : 'btn-ok'} btn-full"
+                  onclick="avanzarPedido('${p.id}', '${p.estado}')">
+            ${p.estado === 'confirmado' ? '🔥 Empezar a preparar' : '✓ Marcar como listo'}
+          </button>
+        </div>
+      `).join('')
+    }
+
+    async function avanzarPedido(id, estadoActual) {
+      const siguiente = estadoActual === 'confirmado' ? 'en_preparacion' : 'listo'
+      const data = await api(`/api/pedidos/${id}/estado`, {
+        method: 'PATCH',
+        body: JSON.stringify({ estado: siguiente })
+      })
+      if (data?.ok) {
+        toast('Pedido actualizado', 'ok')
+        cargarPedidosCocina()
+      } else {
+        toast('Error al actualizar', 'danger')
+      }
+    }
+  </script>
+</body>
+</html>

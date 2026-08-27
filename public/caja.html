@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Caja</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .productos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .producto-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .producto-btn:hover {
+      border-color: var(--accent);
+      background: var(--surface2);
+    }
+    .producto-btn .nombre {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .producto-btn .precio {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+    }
+    .carrito-items {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+      min-height: 120px;
+    }
+    .carrito-item {
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .carrito-item .nombre {
+      flex: 1;
+      font-size: 13px;
+    }
+    .carrito-item .cantidad {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .qty-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .qty-btn:hover { border-color: var(--accent); }
+    .carrito-item .subtotal {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      width: 60px;
+      text-align: right;
+    }
+    .total-box {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .total-box .label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .total-box .monto {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--ok);
+    }
+    .canal-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .canal-tab {
+      flex: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .canal-tab.active {
+      border-color: var(--accent);
+      background: rgba(232,131,42,0.1);
+      color: var(--accent);
+    }
+    .pedidos-recientes {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .pedido-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .pedido-card:hover { border-color: var(--accent); }
+    .pedido-num {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .pedido-info { flex: 1; min-width: 0; }
+    .pedido-info .items-text {
+      font-size: 12px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pedido-info .meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand">🍔 BURGER POINT</span>
+    <div class="navbar-right">
+      <span class="navbar-role">Caja</span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="layout">
+
+    <!-- COLUMNA IZQUIERDA: productos + pedidos -->
+    <div>
+      <div class="page-header">
+        <h2>Nuevo Pedido</h2>
+      </div>
+
+      <!-- Canal -->
+      <div class="canal-tabs">
+        <div class="canal-tab active" onclick="setCanal('presencial', this)">Presencial</div>
+        <div class="canal-tab" onclick="setCanal('whatsapp', this)">WhatsApp</div>
+        <div class="canal-tab" onclick="setCanal('delivery', this)">Delivery</div>
+      </div>
+
+      <!-- Productos -->
+      <div class="productos-grid" id="productos-grid">
+        <div style="color:var(--text-muted);font-size:13px;">Cargando productos...</div>
+      </div>
+
+      <!-- Pedidos del día -->
+      <div style="margin-top:16px;">
+        <div class="section-header" style="margin-bottom:12px;">
+          <h2>Pedidos del día</h2>
+          <button class="btn btn-secondary" onclick="cargarPedidos()" style="font-size:12px;padding:6px 12px;">↻</button>
+        </div>
+        <div class="pedidos-recientes" id="pedidos-lista">
+          <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:24px;">Cargando...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: carrito -->
+    <div>
+      <div class="card" style="position:sticky;top:80px;">
+        <div class="card-header">
+          <h3>Pedido actual</h3>
+          <button class="btn btn-secondary" onclick="limpiarCarrito()" style="font-size:12px;padding:4px 10px;">Limpiar</button>
+        </div>
+
+        <div class="carrito-items" id="carrito-items">
+          <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px 0;">
+            Seleccioná productos
+          </div>
+        </div>
+
+        <div class="total-box">
+          <span class="label">Total</span>
+          <span class="monto" id="total-display">$0</span>
+        </div>
+
+        <div class="input-group" style="margin-bottom:12px;">
+          <label>Observaciones</label>
+          <input type="text" id="observaciones" placeholder="Sin cebolla, extra queso...">
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="confirmarPedido()" id="btn-confirmar">
+          Confirmar Pedido
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL CAMBIAR ESTADO -->
+  <div id="modal-estado" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:none;align-items:center;justify-content:center;">
+    <div class="card" style="width:360px;">
+      <div class="card-header">
+        <h3 id="modal-titulo">Pedido #</h3>
+        <button onclick="cerrarModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div id="modal-items" style="margin-bottom:16px;font-size:13px;color:var(--text-muted);"></div>
+      <div style="display:flex;flex-direction:column;gap:8px;" id="modal-acciones"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    let carrito  = []
+    let productos = []
+    let canalActual = 'presencial'
+
+    window.addEventListener('load', () => {
+      if (!requireAuth(['caja', 'encargado', 'propietario'])) return
+      cargarProductos()
+      cargarPedidos()
+    })
+
+    function setCanal(canal, el) {
+      canalActual = canal
+      document.querySelectorAll('.canal-tab').forEach(t => t.classList.remove('active'))
+      el.classList.add('active')
+    }
+
+    async function cargarProductos() {
+      const data = await api('/api/productos')
+      if (!data) return
+      productos = data.productos || []
+      const grid = document.getElementById('productos-grid')
+      if (productos.length === 0) {
+        grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">Sin productos cargados</div>`
+        return
+      }
+      grid.innerHTML = productos.map(p => `
+        <div class="producto-btn" onclick="agregarAlCarrito('${p.id}')">
+          <span class="nombre">${p.nombre}</span>
+          <span class="precio">$${Number(p.precio).toLocaleString('es-AR')}</span>
+        </div>
+      `).join('')
+    }
+
+    function agregarAlCarrito(productoId) {
+      const prod = productos.find(p => p.id === productoId)
+      if (!prod) return
+      const existe = carrito.find(i => i.producto_id === productoId)
+      if (existe) {
+        existe.cantidad++
+      } else {
+        carrito.push({ producto_id: productoId, nombre: prod.nombre, precio_unitario: prod.precio, cantidad: 1 })
+      }
+      renderCarrito()
+    }
+
+    function cambiarCantidad(productoId, delta) {
+      const item = carrito.find(i => i.producto_id === productoId)
+      if (!item) return
+      item.cantidad += delta
+      if (item.cantidad <= 0) carrito = carrito.filter(i => i.producto_id !== productoId)
+      renderCarrito()
+    }
+
+    function renderCarrito() {
+      const cont = document.getElementById('carrito-items')
+      if (carrito.length === 0) {
+        cont.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px 0;">Seleccioná productos</div>`
+        document.getElementById('total-display').textContent = '$0'
+        return
+      }
+      cont.innerHTML = carrito.map(i => `
+        <div class="carrito-item">
+          <span class="nombre">${i.nombre}</span>
+          <div class="cantidad">
+            <button class="qty-btn" onclick="cambiarCantidad('${i.producto_id}', -1)">−</button>
+            <span style="font-size:14px;font-weight:600;width:20px;text-align:center;">${i.cantidad}</span>
+            <button class="qty-btn" onclick="cambiarCantidad('${i.producto_id}', 1)">+</button>
+          </div>
+          <span class="subtotal">$${(i.cantidad * i.precio_unitario).toLocaleString('es-AR')}</span>
+        </div>
+      `).join('')
+      const total = carrito.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0)
+      document.getElementById('total-display').textContent = '$' + total.toLocaleString('es-AR')
+    }
+
+    function limpiarCarrito() {
+      carrito = []
+      document.getElementById('observaciones').value = ''
+      renderCarrito()
+    }
+
+    async function confirmarPedido() {
+      if (carrito.length === 0) { toast('Agregá al menos un producto', 'warning'); return }
+      const btn = document.getElementById('btn-confirmar')
+      btn.disabled = true
+      btn.textContent = 'Confirmando...'
+
+      const data = await api('/api/pedidos', {
+        method: 'POST',
+        body: JSON.stringify({
+          canal: canalActual,
+          observaciones: document.getElementById('observaciones').value,
+          items: carrito.map(i => ({
+            producto_id: i.producto_id,
+            cantidad: i.cantidad,
+            precio_unitario: i.precio_unitario
+          }))
+        })
+      })
+
+      btn.disabled = false
+      btn.textContent = 'Confirmar Pedido'
+
+      if (data?.ok) {
+        toast('Pedido #' + data.pedido.numero_pedido + ' creado', 'ok')
+        limpiarCarrito()
+        cargarPedidos()
+      } else {
+        toast(data?.error || 'Error al crear pedido', 'danger')
+      }
+    }
+
+    async function cargarPedidos() {
+      const data = await api('/api/pedidos')
+      if (!data) return
+      const lista = document.getElementById('pedidos-lista')
+      if (!data.pedidos || data.pedidos.length === 0) {
+        lista.innerHTML = `<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:24px;">Sin pedidos hoy</div>`
+        return
+      }
+      lista.innerHTML = data.pedidos.map(p => `
+        <div class="pedido-card" onclick="abrirModal(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+          <span class="pedido-num">#${p.numero_pedido}</span>
+          <div class="pedido-info">
+            <div class="items-text">${p.pedido_items?.map(i => i.productos?.nombre).join(', ') || '—'}</div>
+            <div class="meta">${p.canal} · $${(p.total||0).toLocaleString('es-AR')} · ${formatFecha(p.creado_en)}</div>
+          </div>
+          ${badgeEstado(p.estado)}
+        </div>
+      `).join('')
+    }
+
+    function abrirModal(pedido) {
+  document.getElementById('modal-titulo').textContent = 'Pedido #' + pedido.numero_pedido
+  document.getElementById('modal-items').innerHTML =
+    pedido.pedido_items?.map(i =>
+      `${i.cantidad}x ${i.productos?.nombre}${i.observacion ? ' <em>('+i.observacion+')</em>' : ''}`
+    ).join('<br>') || '—'
+
+  const acciones = document.getElementById('modal-acciones')
+
+  // El pedido "recibido" se confirma junto con el cobro, no aparte
+  if (pedido.estado === 'recibido') {
+        acciones.innerHTML = `
+      <button class="btn btn-primary btn-full" onclick="confirmarYCobrar('${pedido.id}', ${pedido.total}, 'efectivo')">
+        💵 Confirmar — Cobrado en efectivo
+      </button>
+      <button class="btn btn-primary btn-full" onclick="confirmarYCobrar('${pedido.id}', ${pedido.total}, 'tarjeta')">
+        💳 Confirmar — Tarjeta (posnet)
+      </button>
+      <button class="btn btn-primary btn-full" onclick="confirmarYCobrar('${pedido.id}', ${pedido.total}, 'transferencia')">
+        🏦 Confirmar — Pago por transferencia
+      </button>
+      <button class="btn btn-danger btn-full" onclick="cambiarEstado('${pedido.id}','cancelado')">
+        ✕ Cancelar pedido
+      </button>
+    `
+    document.getElementById('modal-estado').style.display = 'flex'
+    return
+  }
+
+  const siguientes = {
+    confirmado:    [{ estado:'en_preparacion', label:'🔥 Pasar a cocina', clase:'btn-primary' }],
+    en_preparacion:[{ estado:'listo',          label:'✓ Listo para entregar', clase:'btn-ok' }],
+    listo:         [{ estado:'entregado',      label:'✓ Marcar entregado', clase:'btn-ok' }],
+    entregado:     [],
+    cancelado:     []
+  }
+  const btns = siguientes[pedido.estado] || []
+  btns.push({ estado:'cancelado', label:'✕ Cancelar pedido', clase:'btn-danger' })
+
+  acciones.innerHTML = btns.map(b => `
+    <button class="btn ${b.clase} btn-full" onclick="cambiarEstado('${pedido.id}','${b.estado}')">
+      ${b.label}
+    </button>
+  `).join('')
+
+  document.getElementById('modal-estado').style.display = 'flex'
+}
+
+async function confirmarYCobrar(pedidoId, monto, metodo) {
+  // 1. Registra el cobro
+  const cobro = await api('/api/cobros', {
+    method: 'POST',
+    body: JSON.stringify({ pedido_id: pedidoId, monto, metodo })
+  })
+
+  if (!cobro?.ok) {
+    toast(cobro?.error || 'Error al registrar el cobro', 'danger')
+    return
+  }
+
+  // 2. Confirma el pedido
+  const data = await api(`/api/pedidos/${pedidoId}/estado`, {
+    method: 'PATCH',
+    body: JSON.stringify({ estado: 'confirmado' })
+  })
+
+  if (data?.ok) {
+    toast(metodo === 'transferencia' ? 'Confirmado — transferencia pendiente de verificar' : 'Cobrado y confirmado ✓', 'ok')
+    cerrarModal()
+    cargarPedidos()
+  } else {
+    toast('Error al confirmar el pedido', 'danger')
+  }
+}
+    function cerrarModal() {
+      document.getElementById('modal-estado').style.display = 'none'
+    }
+
+    async function cambiarEstado(pedidoId, estado) {
+      const data = await api(`/api/pedidos/${pedidoId}/estado`, {
+        method: 'PATCH',
+        body: JSON.stringify({ estado })
+      })
+      if (data?.ok) {
+        toast('Estado actualizado', 'ok')
+        cerrarModal()
+        cargarPedidos()
+      } else {
+        toast('Error al actualizar', 'danger')
+      }
+    }
+  </script>
+</body>
+</html>

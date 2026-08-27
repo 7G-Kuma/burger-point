@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Iniciar Sesión</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      background: var(--bg);
+    }
+    .login-wrap {
+      width: 100%;
+      max-width: 380px;
+    }
+    .login-logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .login-logo h1 {
+      font-size: 40px;
+      color: var(--accent);
+      letter-spacing: 2px;
+    }
+    .login-logo p {
+      font-size: 12px;
+      font-family: var(--mono);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .login-card h2 {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+    .login-card > p {
+      margin-top: -12px;
+      font-size: 13px;
+    }
+    .error-msg {
+      color: var(--danger);
+      font-size: 13px;
+      text-align: center;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-wrap">
+    <div class="login-logo">
+      <h1>BURGER POINT</h1>
+      <p>Sistema de gestión</p>
+    </div>
+
+    <div class="login-card">
+      <div>
+        <h2>Iniciar sesión</h2>
+        <p>Ingresá con tu usuario y contraseña</p>
+      </div>
+
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="tu@email.com" autocomplete="email">
+      </div>
+
+      <div class="input-group">
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <p class="error-msg" id="error-msg">Email o contraseña incorrectos</p>
+
+      <button class="btn btn-primary btn-full" id="btn-login" onclick="login()">
+        Ingresar
+      </button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    // Si ya hay sesión activa, redirige directo
+    window.addEventListener('load', () => {
+      const token = getToken()
+      const usuario = getUsuario()
+      if (token && usuario) {
+        redirigirPorRol(usuario.rol)
+      }
+
+      // Enter en password dispara login
+      document.getElementById('password')
+        .addEventListener('keydown', e => {
+          if (e.key === 'Enter') login()
+        })
+    })
+
+    async function login() {
+      const email    = document.getElementById('email').value.trim()
+      const password = document.getElementById('password').value
+      const btn      = document.getElementById('btn-login')
+      const errorMsg = document.getElementById('error-msg')
+
+      if (!email || !password) {
+        errorMsg.textContent = 'Completá email y contraseña'
+        errorMsg.style.display = 'block'
+        return
+      }
+
+      btn.disabled = true
+      btn.textContent = 'Ingresando...'
+      errorMsg.style.display = 'none'
+
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.token) {
+        localStorage.setItem('bp_token', data.token)
+        localStorage.setItem('bp_usuario', JSON.stringify(data.usuario))
+        redirigirPorRol(data.usuario.rol)
+      } else {
+        errorMsg.textContent = data.error || 'Email o contraseña incorrectos'
+        errorMsg.style.display = 'block'
+        btn.disabled = false
+        btn.textContent = 'Ingresar'
+      }
+    }
+
+    function redirigirPorRol(rol) {
+      const destinos = {
+        propietario: '/panel.html',
+        encargado:   '/panel.html',
+        caja:        '/caja.html',
+        cocina:      '/cocina.html',
+        reparto:     '/reparto.html'
+      }
+      window.location.href = destinos[rol] || '/index.html'
+    }
+  </script>
+</body>
+</html>

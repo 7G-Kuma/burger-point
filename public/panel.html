@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .stat-value.ok     { color: var(--ok); }
+    .stat-value.accent { color: var(--accent); }
+    .stat-value.warn   { color: var(--accent2); }
+    .stat-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .section-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .alertas-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+    .no-alertas {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-muted);
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <span class="navbar-brand">🍔 BURGER POINT</span>
+    <div class="navbar-right">
+      <span class="navbar-role" id="nombre-usuario"></span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">
+        Salir
+      </button>
+    </div>
+  </nav>
+
+  <div class="main-content">
+
+    <!-- HEADER -->
+    <div class="page-header">
+      <div>
+        <h1>Panel del día</h1>
+        <p id="fecha-hoy" style="margin-top:4px;"></p>
+      </div>
+      <button class="btn btn-secondary" onclick="cargarDatos()" style="font-size:13px;">
+        ↻ Actualizar
+      </button>
+    </div>
+
+    <!-- ESTADÍSTICAS -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Ventas del día</div>
+        <div class="stat-value ok" id="stat-ventas">$0</div>
+        <div class="stat-sub" id="stat-pedidos-count">0 pedidos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Cobrado</div>
+        <div class="stat-value accent" id="stat-cobrado">$0</div>
+        <div class="stat-sub" id="stat-pendiente">$0 pendiente</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pedidos activos</div>
+        <div class="stat-value warn" id="stat-activos">0</div>
+        <div class="stat-sub">En proceso ahora</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Cancelados hoy</div>
+        <div class="stat-value" id="stat-cancelados">0</div>
+        <div class="stat-sub">Del día de hoy</div>
+      </div>
+    </div>
+
+    <!-- ALERTAS -->
+    <div class="section-header">
+      <h2>⚠️ Alertas activas</h2>
+    </div>
+    <div class="alertas-list" id="alertas-list">
+      <div class="no-alertas">Cargando alertas...</div>
+    </div>
+
+    <!-- PEDIDOS RECIENTES -->
+    <div class="section-header">
+      <h2>Pedidos recientes</h2>
+      <a href="/caja.html" class="btn btn-secondary" style="font-size:13px;">Ver todos</a>
+    </div>
+    <div class="card">
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Canal</th>
+              <th>Estado</th>
+              <th>Total</th>
+              <th>Hora</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-pedidos">
+            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Cargando pedidos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    // Verifica que el usuario tenga acceso
+    window.addEventListener('load', () => {
+      if (!requireAuth(['propietario', 'encargado'])) return
+
+      const usuario = getUsuario()
+      document.getElementById('nombre-usuario').textContent = usuario.nombre
+
+      // Fecha de hoy
+      const hoy = new Date().toLocaleDateString('es-AR', {
+        weekday: 'long', year: 'numeric',
+        month: 'long', day: 'numeric'
+      })
+      document.getElementById('fecha-hoy').textContent = hoy
+
+      cargarDatos()
+
+      // Actualiza cada 60 segundos
+      setInterval(cargarDatos, 60000)
+    })
+
+    async function cargarDatos() {
+      await Promise.all([
+        cargarEstadisticas(),
+        cargarPedidosRecientes(),
+        cargarAlertas()
+      ])
+    }
+
+    async function cargarEstadisticas() {
+      const data = await api('/api/panel/estadisticas')
+      if (!data) return
+
+      document.getElementById('stat-ventas').textContent =
+        '$' + (data.ventas || 0).toLocaleString('es-AR')
+      document.getElementById('stat-pedidos-count').textContent =
+        (data.total_pedidos || 0) + ' pedidos'
+      document.getElementById('stat-cobrado').textContent =
+        '$' + (data.cobrado || 0).toLocaleString('es-AR')
+      document.getElementById('stat-pendiente').textContent =
+        '$' + (data.pendiente || 0).toLocaleString('es-AR') + ' pendiente'
+      document.getElementById('stat-activos').textContent =
+        data.activos || 0
+      document.getElementById('stat-cancelados').textContent =
+        data.cancelados || 0
+    }
+
+    async function cargarPedidosRecientes() {
+      const data = await api('/api/pedidos?limite=8')
+      if (!data || !data.pedidos) return
+
+      const tbody = document.getElementById('tabla-pedidos')
+
+      if (data.pedidos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Sin pedidos hoy</td></tr>`
+        return
+      }
+
+      tbody.innerHTML = data.pedidos.map(p => `
+        <tr>
+          <td class="mono" style="color:var(--accent);">#${p.numero_pedido}</td>
+          <td style="text-transform:capitalize;">${p.canal}</td>
+          <td>${badgeEstado(p.estado)}</td>
+          <td class="mono">$${(p.total || 0).toLocaleString('es-AR')}</td>
+          <td style="color:var(--text-muted);font-size:12px;">${formatFecha(p.creado_en)}</td>
+        </tr>
+      `).join('')
+    }
+
+    async function cargarAlertas() {
+      const data = await api('/api/panel/alertas')
+      const lista = document.getElementById('alertas-list')
+
+      if (!data || !data.alertas || data.alertas.length === 0) {
+        lista.innerHTML = `<div class="no-alertas">✅ Sin alertas activas — todo en orden</div>`
+        return
+      }
+
+      lista.innerHTML = data.alertas.map(a => `
+        <div class="alert alert-${a.tipo}">
+          <span>${a.icono}</span>
+          <div>
+            <strong>${a.titulo}</strong>
+            <div style="font-size:12px;margin-top:2px;opacity:0.8;">${a.descripcion}</div>
+          </div>
+        </div>
+      `).join('')
+    }
+  </script>
+</body>
+</html>
