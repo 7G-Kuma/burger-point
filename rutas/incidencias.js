@@ -1,0 +1,32 @@
+const express = require('express')
+const jwt     = require('jsonwebtoken')
+const { createClient } = require('@supabase/supabase-js')
+
+const router = express.Router()
+
+function getSupabase() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)
+}
+
+function auth(req, res, next) {
+  const header = req.headers.authorization
+  if (!header) return res.status(401).json({ error: 'Sin token' })
+  try {
+    req.usuario = jwt.verify(header.replace('Bearer ', ''), process.env.JWT_SECRET)
+    next()
+  } catch {
+    res.status(401).json({ error: 'Token inválido' })
+  }
+}
+
+router.post('/', auth, async (req, res) => {
+  const supabase = getSupabase()
+  const { pedido_id, tipo, descripcion } = req.body
+  const { error } = await supabase
+    .from('incidencias')
+    .insert({ pedido_id, tipo, descripcion, usuario_id: req.usuario.id })
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ ok: true })
+})
+
+module.exports = router
