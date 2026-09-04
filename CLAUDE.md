@@ -39,7 +39,7 @@ public/
 
 Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`.
 
-Cada ruta crea su propio cliente Supabase con `createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)` — actualmente con la **anon key** (ver seguridad abajo).
+El cliente Supabase está centralizado en `rutas/db.js`: usa `SUPABASE_SERVICE_KEY` si está configurada, y si no cae a `SUPABASE_KEY` (anon). Todavía corre con la anon key porque `SUPABASE_SERVICE_KEY` no está seteada (ver seguridad abajo).
 
 Usuarios de equipo ya creados: `admin@burgerpoint.com` (propietario), `caja@burgerpoint.com` (María), `cocina@burgerpoint.com` (Carola), `reparto@burgerpoint.com` (Juan).
 
@@ -60,10 +60,13 @@ Usuarios de equipo ya creados: `admin@burgerpoint.com` (propietario), `caja@burg
 - Probar login limpio en ventana de incógnito (localStorage puede tener sesión vieja).
 - El descuento de stock en `pedidos.js` (al confirmar un pedido) consulta `producto_insumos`, pero esa tabla tiene RLS activado sin políticas — con la anon key la consulta siempre devuelve vacío, así que el descuento de stock **no está funcionando realmente**. Se resuelve junto con el punto de seguridad de abajo (pasar el backend a la service_role key).
 
-## Seguridad — pendiente de decisión del usuario
+## Seguridad
 
-1. **RLS deshabilitado en 7 tablas** (`usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`): cualquiera con la anon key (ya expuesta en GitHub) puede leer/escribir esas tablas directo contra la API de Supabase, sin pasar por el JWT de Express. Fix recomendado: habilitar RLS en las 7 tablas (bloquea el acceso anon/authenticated) y mover el backend a la **service_role key** (bypasea RLS, nunca se expone al cliente). Esto también arregla el descuento de stock roto. Pendiente de que el usuario decida — no se aplicó.
-2. `.env` y `node_modules/` estaban commiteados en git y ya se habían subido a GitHub antes de agregar `.gitignore` (corregido el 2026-09-03). El commit viejo en el historial todavía contiene `SUPABASE_KEY` y `JWT_SECRET` — rotar ambos desde el dashboard de Supabase (Project Settings → API) sigue pendiente.
+- ✅ **JWT_SECRET rotado** (2026-09-03) — el valor viejo, expuesto en el historial de GitHub, ya no sirve para firmar ni validar tokens. Está solo en el `.env` local (gitignored).
+- ✅ **Cliente Supabase centralizado** en `rutas/db.js`, listo para preferir `SUPABASE_SERVICE_KEY` en cuanto exista.
+- ⏳ **Bloqueado — falta la service_role key del usuario**: `.env` tiene una línea comentada `SUPABASE_SERVICE_KEY=` lista para completar (Dashboard de Supabase → Project Settings → API → `service_role` secret). En cuanto esté, se aplica la migración que habilita RLS en las 7 tablas sin políticas (`usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias` — `producto_insumos` ya la tiene). Con RLS activo y sin políticas, la anon key (la que quedó expuesta en GitHub) no puede leer ni escribir nada vía la API de Supabase, y el backend sigue funcionando porque `service_role` bypasea RLS por diseño. Esto también arregla el descuento de stock roto (ver nota técnica abajo).
+- La anon key en sí no se rotó (no hay endpoint para eso vía las herramientas disponibles) — no hace falta: una vez con RLS activo, esa key queda inutilizable para terceros aunque siga expuesta en el historial viejo de git.
+- `.env` y `node_modules/` estaban commiteados en git y ya se habían subido a GitHub antes de agregar `.gitignore` (corregido el 2026-09-03). El commit viejo en el historial sigue teniendo los valores originales — reescribir el historial de git (`git filter-repo` + force-push) es una opción para borrarlos del todo, pero es una operación destructiva que no se hizo sin pedir permiso explícito.
 
 ## Credenciales de desarrollo (seed)
 
