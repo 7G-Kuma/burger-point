@@ -33,28 +33,68 @@
     }
     .productos-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 16px;
     }
-    .producto-btn {
+    .producto-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 12px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.15s;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.15s, transform 0.15s;
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      box-shadow: var(--shadow-card);
     }
-    .producto-btn:hover { border-color: var(--accent); background: var(--surface2); }
-    .producto-btn .nombre { font-size: 13px; font-weight: 600; }
-    .producto-btn .precio { font-family: var(--mono); font-size: 12px; color: var(--accent); }
-    .producto-btn .stock { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
-    .producto-btn .stock.agotado { color: var(--danger); font-weight: 700; }
-    .producto-btn.sin-stock { opacity: 0.4; cursor: not-allowed; }
+    .producto-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .producto-card.sin-stock { opacity: 0.55; }
+
+    .producto-img {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      background: linear-gradient(135deg, var(--surface2), var(--bg));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .producto-img img { width: 100%; height: 100%; object-fit: cover; }
+    .producto-img-fallback {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-muted);
+    }
+    .producto-img-fallback .icono { font-size: 40px; opacity: 0.5; }
+    .producto-img-fallback .texto { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.6; }
+    .producto-img .stock-chip {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: rgba(217,79,61,0.9);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .producto-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .producto-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .producto-head .nombre { font-size: 14px; font-weight: 700; font-family: var(--font-display); }
+    .producto-head .precio { font-family: var(--mono); font-size: 13px; color: var(--accent); white-space: nowrap; }
+    .producto-body .descripcion { font-size: 12px; color: var(--text-muted); line-height: 1.4; flex: 1; }
+    .producto-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+    .producto-footer .stock { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
+    .producto-footer .stock.bajo { color: var(--accent2); }
+    .btn-add {
+      font-size: 12px;
+      padding: 7px 14px;
+    }
+    .producto-card.sin-stock .btn-add { display: none; }
 
     .carrito-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; min-height: 80px; }
     .carrito-item { background: var(--surface2); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
@@ -152,6 +192,14 @@
       document.getElementById('grupo-direccion').style.display = tipo === 'delivery' ? 'flex' : 'none'
     }
 
+    function slugify(nombre) {
+      return nombre.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/&/g, 'y')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+    }
+
     async function cargarMenu() {
       const res = await fetch('/api/menu')
       const data = await res.json()
@@ -163,11 +211,29 @@
       }
       grid.innerHTML = productos.map(p => {
         const sinStock = p.disponible !== null && p.disponible <= 0
+        const bajoStock = !sinStock && p.disponible !== null && p.disponible <= 5
+        const img = `/img/productos/${slugify(p.nombre)}.jpg`
         return `
-        <div class="producto-btn ${sinStock ? 'sin-stock' : ''}" onclick="${sinStock ? '' : `agregarAlCarrito('${p.id}')`}">
-          <span class="nombre">${p.nombre}</span>
-          <span class="precio">$${Number(p.precio).toLocaleString('es-AR')}</span>
-          ${sinStock ? '<span class="stock agotado">Agotado</span>' : ''}
+        <div class="producto-card ${sinStock ? 'sin-stock' : ''}">
+          <div class="producto-img">
+            <img src="${img}" alt="${p.nombre}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+            <div class="producto-img-fallback" style="display:none;">
+              <span class="icono">🍔</span>
+              <span class="texto">Foto próximamente</span>
+            </div>
+            ${sinStock ? '<span class="stock-chip">Agotado</span>' : ''}
+          </div>
+          <div class="producto-body">
+            <div class="producto-head">
+              <span class="nombre">${p.nombre}</span>
+              <span class="precio">$${Number(p.precio).toLocaleString('es-AR')}</span>
+            </div>
+            <p class="descripcion">${p.descripcion || ''}</p>
+            <div class="producto-footer">
+              <span class="stock ${bajoStock ? 'bajo' : ''}">${bajoStock ? `Quedan ${p.disponible}` : ''}</span>
+              <button class="btn btn-primary btn-add" onclick="agregarAlCarrito('${p.id}')">+ Agregar</button>
+            </div>
+          </div>
         </div>`
       }).join('')
     }

@@ -9,7 +9,7 @@ router.get('/', async (req, res) => {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('productos')
-    .select('id, nombre, precio')
+    .select('id, nombre, precio, descripcion')
     .eq('activo', true)
     .order('nombre')
 
