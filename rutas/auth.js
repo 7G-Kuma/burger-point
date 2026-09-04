@@ -1,18 +1,9 @@
 const express  = require('express')
 const bcrypt   = require('bcrypt')
 const jwt      = require('jsonwebtoken')
-const { createClient } = require('@supabase/supabase-js')
+const { getSupabase } = require('./db')
 
 const router = express.Router()
-
-// Crea el cliente de Supabase dentro de la función
-// para que las variables ya estén cargadas
-function getSupabase() {
-  return createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
-  )
-}
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {

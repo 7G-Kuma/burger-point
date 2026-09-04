@@ -1,12 +1,8 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
-const { createClient } = require('@supabase/supabase-js')
+const { getSupabase } = require('./db')
 
 const router = express.Router()
-
-function getSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)
-}
 
 function auth(req, res, next) {
   const header = req.headers.authorization
