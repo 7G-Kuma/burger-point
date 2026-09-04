@@ -31,14 +31,16 @@ rutas/
   incidencias.js     # POST /api/incidencias (BR-04)
   cobros.js          # POST /api/cobros, PATCH /api/cobros/:id/verificar
   seguimiento.js     # GET /api/seguimiento/:numero — PÚBLICO, sin auth, para que el cliente consulte su pedido
+  registro.js        # GET /api/registro — historial completo con filtros, solo propietario/encargado
 public/
   img/logo.svg       # logo propio (badge circular con hamburguesa), usado como favicon en las 6 páginas
   index.html         # login — link a seguimiento.html para el cliente
   panel.html         # propietario/encargado
-  caja.html          # caja/encargado — crea pedidos, muestra stock por producto (bloquea si no alcanza) y cobra (efectivo/tarjeta/transferencia)
+  caja.html          # caja/encargado — crea pedidos, muestra stock por producto (bloquea si no alcanza), cobra y genera boleta
   cocina.html        # cocina — temporizador, cambio de estado, registro de errores
   reparto.html       # reparto — entregas del turno, verificar transferencia pendiente
   seguimiento.html   # pública, sin login — el cliente ve el estado de su pedido por número
+  registro.html      # propietario/encargado — historial completo, filtros, detalle y boleta de cada pedido
 .claude/launch.json  # config para levantar el servidor desde el preview del editor
 ```
 
@@ -77,6 +79,13 @@ Logo propio en `public/img/logo.svg` (badge circular, hamburguesa ilustrada en f
 Respaldado por `rutas/seguimiento.js` — `GET /api/seguimiento/:numero`, sin middleware de auth (el cliente no tiene cuenta). Devuelve estado, canal, items, total y el método/estado del cobro. Bajo riesgo de exponer esto sin auth: `pedidos` no guarda ningún dato personal del cliente (ni nombre ni teléfono), solo lo operativo.
 
 Falta (no pedido todavía, posible mejora futura): compartirle el link/número al cliente automáticamente al crear el pedido en caja — hoy caja tendría que decírselo de palabra o por WhatsApp a mano.
+
+## Registro de pedidos, boleta en PDF y navegación entre perfiles (2026-09-03)
+
+- **Registro completo** (`registro.html` + `rutas/registro.js`, solo propietario/encargado): historial de todos los pedidos (no solo los de hoy), con filtros por fecha/estado/canal, tiles de resumen (pedidos, facturado, cancelados, con incidencias) y un detalle por pedido (items, precios, quién atendió, cobro, observaciones, incidencias, timestamps de creado/actualizado).
+- **Boleta en PDF** (`GET /api/pedidos/:id/boleta`, con `pdfkit`): comprobante de una página con logo, datos del pedido, tabla de items con subtotales, total, método/estado de pago, observaciones e incidencias si las hay. Accesible desde el modal de `caja.html` (botón "🧾 Ver boleta", en cualquier estado del pedido) y desde el detalle en `registro.html`. Se abre en pestaña nueva vía `verBoleta()` en `app.js` — importante: esa función abre la pestaña **antes** del `fetch`, porque abrirla después de un `await` hace que el navegador la bloquee como popup.
+- **Navegación entre perfiles**: `renderNavSwitcher()` en `app.js` agrega al navbar los links a Panel/Caja/Cocina/Reparto/Registro cuando el usuario logueado es `propietario` o `encargado` (esos roles ya podían entrar a cualquier vista por el `requireAuth` de cada página — lo que faltaba era la forma de llegar sin escribir la URL a mano).
+- Al debuggear la boleta aparecieron PDFs truncados (solo el header) en las primeras pruebas — se descartó como bug real: fue una carrera al cargar las fuentes de PDFKit por disparar dos pedidos de la misma boleta casi en simultáneo durante las pruebas. Con una sola descarga por vez (el caso real de uso) genera el PDF completo siempre; se verificó con cuatro métodos distintos (archivo, http plano, Express+curl, fetch del navegador).
 
 ## Notas técnicas conocidas
 
