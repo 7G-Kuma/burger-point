@@ -33,9 +33,11 @@ rutas/
   seguimiento.js     # GET /api/seguimiento/:numero — PÚBLICO, sin auth, para que el cliente consulte su pedido
   registro.js        # GET /api/registro — historial completo con filtros, solo propietario/encargado
   insumos.js         # GET /api/insumos (+ /movimientos), POST /:id/ingreso — inventario, solo propietario/encargado
+  menu.js            # GET /api/menu, POST /api/menu/pedido — PÚBLICO, sin auth, menú digital de autoservicio
 public/
   img/logo.svg       # logo propio (badge circular con hamburguesa), usado como favicon en las 6 páginas
-  index.html         # login — link a seguimiento.html para el cliente
+  index.html         # login — links a menu.html y seguimiento.html para el cliente
+  menu.html          # pública, sin login — el cliente arma su pedido, elige retiro/delivery y lo envía
   panel.html         # propietario/encargado
   caja.html          # caja/encargado — crea pedidos, muestra stock por producto (bloquea si no alcanza), cobra y genera factura
   cocina.html        # cocina — temporizador, cambio de estado, registro de errores
@@ -51,6 +53,8 @@ public/
 Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`, `facturas`, `movimientos_stock`. **RLS activado en las 10** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
 
 `facturas`: `numero_factura` autoincremental (serial), vinculada a `pedido_id` + `cobro_id`, con `metodo_pago`/`estado_pago` copiados del cobro. Se crea automáticamente en `POST /api/cobros`. `movimientos_stock`: `tipo` ('ingreso'/'ajuste'), `cantidad`, `nota`, `usuario_id` — se crea en `POST /api/insumos/:id/ingreso`.
+
+`pedidos.canal` ahora acepta `'online'` además de `presencial`/`whatsapp`/`delivery` (pedidos de autoservicio para retiro; si el cliente pide delivery desde el menú digital se usa el canal `delivery` normal). `pedidos` tiene además `cliente_nombre`, `cliente_telefono`, `cliente_direccion` (nullable — solo se completan en pedidos creados desde `menu.html`; los que carga el staff los dejan `null`, y eso es lo que usa el frontend para detectar "es un pedido online").
 
 Usuarios de equipo ya creados: `admin@burgerpoint.com` (propietario), `caja@burgerpoint.com` (María), `cocina@burgerpoint.com` (Carola), `reparto@burgerpoint.com` (Juan).
 
@@ -80,9 +84,9 @@ Logo propio en `public/img/logo.svg` (badge circular, hamburguesa ilustrada en f
 
 `public/seguimiento.html` — página pública (sin login), el cliente ingresa el número de pedido (el mismo `numero_pedido` que ve caja) y ve un stepper visual con 5 pasos que cambian de label según el canal: Recibido → Confirmado → Cocinando → **Listo para retirar** (presencial/whatsapp) o **En camino** (delivery) → Entregado/Retirado. Estado `cancelado` muestra una tarjeta roja aparte, sin stepper. Se auto-refresca cada 10s hasta llegar a un estado terminal (entregado/cancelado). Soporta `?numero=N` en la URL para linkear directo.
 
-Respaldado por `rutas/seguimiento.js` — `GET /api/seguimiento/:numero`, sin middleware de auth (el cliente no tiene cuenta). Devuelve estado, canal, items, total y el método/estado del cobro. Bajo riesgo de exponer esto sin auth: `pedidos` no guarda ningún dato personal del cliente (ni nombre ni teléfono), solo lo operativo.
+Respaldado por `rutas/seguimiento.js` — `GET /api/seguimiento/:numero`, sin middleware de auth (el cliente no tiene cuenta). Devuelve estado, canal, items, total y el método/estado del cobro.
 
-Falta (no pedido todavía, posible mejora futura): compartirle el link/número al cliente automáticamente al crear el pedido en caja — hoy caja tendría que decírselo de palabra o por WhatsApp a mano.
+Nota de seguridad actualizada: desde que existe `menu.html`, `pedidos` **sí** guarda datos personales (`cliente_nombre`, `cliente_telefono`, `cliente_direccion`) para los pedidos de autoservicio. `GET /api/seguimiento/:numero` NO los devuelve (solo estado/canal/items/total) — si en algún momento se le agrega el nombre del cliente a esa respuesta para personalizar el saludo, hay que evaluar de nuevo si conviene exponerlo sin auth (numero_pedido es correlativo y fácil de adivinar/iterar).
 
 ## Registro de pedidos, navegación entre perfiles (2026-09-03)
 
@@ -96,13 +100,20 @@ Falta (no pedido todavía, posible mejora futura): compartirle el link/número a
 - Se hizo un backfill de facturas para los 17 cobros que ya existían antes de esta función (`#000001` a `#000017`); los pedidos #1 y #2 nunca tuvieron cobro y por eso no tienen factura (se ve "—" en el registro, es correcto).
 - **Inventario** (`inventario.html` + `rutas/insumos.js`, solo propietario/encargado): tabla de todos los insumos ordenada por criticidad (agotado → bajo → normal), con botón "➕ Ingreso" por insumo que abre un modal (cantidad + nota opcional) y llama a `POST /api/insumos/:id/ingreso` — suma al `cantidad_actual` y deja un registro en `movimientos_stock`. Pestaña "Historial de ingresos" lista esos movimientos con quién lo cargó. Panel del propietario tiene un botón directo ("📦 Ver inventario") junto a las alertas de stock.
 
+## Menú digital para clientes + auto-notificación a caja (2026-09-04)
+
+- **`menu.html`** (público, sin login): catálogo con stock en vivo (mismo cálculo de `stock.js` que usa caja), carrito, elección de "Retiro en el local" o "Delivery", datos de contacto (nombre/teléfono, +dirección si es delivery). Al confirmar, muestra el número de pedido y un link directo a `seguimiento.html?numero=N`.
+- **`rutas/menu.js`** (público): `GET /` arma el menú; `POST /pedido` crea el pedido con `usuario_id: null` y `canal` = `'online'` (retiro) o `'delivery'`. El precio de cada item se busca en el servidor (tabla `productos`), **nunca se confía en lo que mande el cliente** — si no fuera así, cualquiera podría mandar un precio inventado. Valida stock igual que `POST /api/pedidos`.
+- **Automatización en caja**: `caja.html` ahora sondea `/api/pedidos` cada 8s (antes solo se refrescaba al crear/cobrar un pedido). Cuando aparece un pedido nuevo con `cliente_nombre` (o sea, de autoservicio) que no estaba en el sondeo anterior: suena un beep (`sonarAlerta()` en `app.js`, generado con la Web Audio API, sin archivo de sonido), aparece un toast "🌐 Pedido online #N — nombre", y la tarjeta del pedido queda resaltada con un borde animado un par de segundos. El modal del pedido muestra nombre/teléfono/dirección del cliente.
+- Caja sigue siendo el filtro humano: un pedido online entra en estado `recibido` igual que uno cargado a mano, y todavía hace falta que caja elija el método de pago y confirme para que pase a cocina — lo que se automatizó es la **carga** del pedido y el **aviso**, no se salteó el control de caja sobre el cobro.
+- Probado de punta a punta: pedido de delivery desde el menú → aparece resaltado en caja con los datos del cliente → caja confirma → stock se descuenta → factura se emite → `seguimiento.html` muestra "Confirmado, ya lo mandamos a cocina" con el paso "En camino" (o "Listo para retirar" si el canal es `online`).
+
 ## Pendiente de la última ronda de pedidos (no implementado todavía)
 
-El usuario pidió seis cosas grandes de una — se está entregando de a una, en el orden que él priorizó. Ya hechas: inventario + factura (arriba). **Todavía faltan**, en este orden aproximado de lo conversado:
+El usuario pidió seis cosas grandes de una — se está entregando de a una, en el orden que él priorizó. Ya hechas: inventario + factura, menú digital + auto-notificación (arriba). **Todavía faltan**:
 
-1. **Menú digital para clientes + auto-notificación a caja**: página pública donde el cliente arma su propio pedido online (sin pasar por un empleado); al confirmarlo, caja tiene que enterarse automáticamente (para mandarlo a cocina) sin que nadie lo cargue a mano. Requiere pensar el mecanismo de "notificación" en tiempo real (polling corto en caja.html sería lo más simple de implementar con esta arquitectura, sin WebSockets).
-2. **Rol de encargado real + panel de permisos**: hoy `encargado` existe solo de nombre — en todos lados donde se chequea rol, `encargado` tiene exactamente los mismos permisos que `propietario`. Falta: una tabla/estructura de permisos granular, un panel donde el dueño defina qué puede ver/tocar cada perfil, y que las acciones del encargado le generen una notificación al propietario (falta definir qué significa "notificación" acá — ¿un feed de actividad en el panel? ¿algo más inmediato?).
-3. **Precios y promociones**: pantalla para que propietario/encargado editen precios de `productos` (ya existe `POST /api/productos`, falta el `PATCH` y la UI) y una gestión de promociones nueva de cero (no hay tabla `promociones` todavía).
+1. **Rol de encargado real + panel de permisos**: hoy `encargado` existe solo de nombre — en todos lados donde se chequea rol, `encargado` tiene exactamente los mismos permisos que `propietario`. Falta: una tabla/estructura de permisos granular, un panel donde el dueño defina qué puede ver/tocar cada perfil, y que las acciones del encargado le generen una notificación al propietario (falta definir qué significa "notificación" acá — ¿un feed de actividad en el panel? ¿algo más inmediato?).
+2. **Precios y promociones**: pantalla para que propietario/encargado editen precios de `productos` (ya existe `POST /api/productos`, falta el `PATCH` y la UI) y una gestión de promociones nueva de cero (no hay tabla `promociones` todavía).
 
 Cuando se retome cualquiera de estas, conviene re-preguntar prioridad si pasó tiempo — el usuario dijo que las va a querer todas, pero una por vez.
 
@@ -117,7 +128,7 @@ Cuando se retome cualquiera de estas, conviene re-preguntar prioridad si pasó t
 ## Seguridad — resuelto 2026-09-03
 
 - ✅ **JWT_SECRET rotado** — el valor viejo, expuesto en el historial de GitHub, ya no sirve para firmar ni validar tokens.
-- ✅ **RLS habilitado en las 8 tablas de `public`** (antes solo `producto_insumos` la tenía). La anon key (expuesta en GitHub) ya no puede leer ni escribir nada vía la API de Supabase.
+- ✅ **RLS habilitado en las 10 tablas de `public`** (antes solo `producto_insumos` la tenía; `facturas` y `movimientos_stock` nacieron ya con RLS activo). La anon key (expuesta en GitHub) ya no puede leer ni escribir nada vía la API de Supabase.
 - ✅ **Backend migrado a `SUPABASE_SERVICE_KEY`** vía `rutas/db.js` (bypasea RLS, nunca se expone al navegador). Confirmado funcionando end-to-end y que arregló el descuento de stock.
 - La anon key en sí no se rotó (no hay endpoint para eso vía las herramientas disponibles) — no hace falta: con RLS activo queda inutilizable para terceros aunque siga expuesta en el historial viejo de git.
 - `.env` y `node_modules/` estaban commiteados en git y ya se habían subido a GitHub antes de agregar `.gitignore` (corregido el 2026-09-03). El commit viejo en el historial sigue teniendo los valores originales (ya rotados/neutralizados) — reescribir el historial de git (`git filter-repo` + force-push) sigue disponible como limpieza opcional, no se hizo sin pedir permiso explícito por ser destructivo.
