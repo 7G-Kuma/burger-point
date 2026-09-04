@@ -23,16 +23,17 @@ Probado en vivo el 2026-09-03: caja crea pedido → cobro por transferencia qued
 server.js            # carga .env si existe (Railway inyecta env vars directo, sin archivo .env), monta rutas, sirve public/
 rutas/
   db.js              # cliente Supabase centralizado — prefiere SUPABASE_SERVICE_KEY, cae a SUPABASE_KEY
+  stock.js           # calcula unidades disponibles por producto según el insumo más escaso de su receta
   auth.js            # POST /api/auth/login
   panel.js           # GET /api/panel/estadisticas + /alertas
-  pedidos.js         # GET/POST/PATCH /api/pedidos (incluye descuento de insumos al confirmar)
-  productos.js       # GET/POST /api/productos
+  pedidos.js         # GET/POST/PATCH /api/pedidos (valida stock al crear, descuenta insumos al confirmar)
+  productos.js       # GET/POST /api/productos (incluye `disponible` por producto)
   incidencias.js     # POST /api/incidencias (BR-04)
   cobros.js          # POST /api/cobros, PATCH /api/cobros/:id/verificar
 public/
   index.html         # login
   panel.html         # propietario/encargado
-  caja.html          # caja/encargado — crea pedidos y cobra (efectivo/tarjeta/transferencia)
+  caja.html          # caja/encargado — crea pedidos, muestra stock por producto (bloquea si no alcanza) y cobra (efectivo/tarjeta/transferencia)
   cocina.html        # cocina — temporizador, cambio de estado, registro de errores
   reparto.html       # reparto — entregas del turno, verificar transferencia pendiente
 .claude/launch.json  # config para levantar el servidor desde el preview del editor
@@ -53,6 +54,14 @@ Variables de entorno cargadas en Render → pestaña Environment (independientes
 Bug real encontrado y resuelto durante el primer deploy (2026-09-03): las variables no habían quedado cargadas en Render (`SUPABASE_URL: FALTA` en los logs) — el login tiraba 500 (`supabaseUrl is required`). Se resolvió cargándolas en la pestaña Environment del dashboard.
 
 **Próximo paso, si se necesita 24/7 sin el sleep de 15 min** (por ejemplo después de presentar el proyecto): migrar a Railway u otro plan pago — el código ya es compatible tal cual (mismas env vars, respeta `process.env.PORT`).
+
+## Stock visible en caja (2026-09-03)
+
+`rutas/stock.js` calcula, para cada producto, `floor(insumo.cantidad_actual / cantidad_usada)` sobre cada insumo de su receta (`producto_insumos`) y toma el mínimo — ese es el cuello de botella real. `caja.html` muestra "Quedan N" / "Agotado" en cada botón, deshabilita el producto sin stock, tapea la cantidad que se puede sumar al carrito, y se refresca solo cada 15s y después de cada cobro (que es el momento real en que se descuenta insumos, ver `pedidos.js`). `POST /api/pedidos` valida el mismo cálculo server-side antes de crear el pedido, como segunda barrera.
+
+Se cargaron recetas de prueba para `Agua` → `Agua (botella)` y `Gaseosa` → `Gaseosa (botella)` (antes no tenían insumo asociado, por eso no mostraban stock). Datos de stock actuales son los que ya había en la tabla `insumos` más algunos ajustados a mano para la demo: `Queso azul` bajo (Blue Cheese casi agotado) y `Aceite de trufa` en 0 (Papas Parmesano & Trufa agotada) — sirven para mostrar los tres estados (normal/bajo/agotado) al presentar.
+
+**Importante sobre el momento del descuento**: el stock se descuenta cuando caja confirma el cobro (pedido pasa a `confirmado`), no cuando cocina marca "listo". Se decidió así porque el descuento ya estaba implementado en ese punto del flujo desde antes — funcionalmente el efecto es el mismo que pedía el usuario (la caja ve que se agotó algo después de que se vendió), solo que se reserva el insumo al aceptar el pedido en vez de al terminar de cocinarlo.
 
 ## Notas técnicas conocidas
 
