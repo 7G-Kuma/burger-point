@@ -51,7 +51,24 @@ router.post('/', auth, async (req, res) => {
     .single()
 
   if (error) return res.status(500).json({ error: error.message })
-  res.json({ ok: true, cobro })
+
+  // Cada cobro emite su factura — queda como registro permanente de la venta
+  const { data: factura, error: errorFactura } = await supabase
+    .from('facturas')
+    .insert({
+      pedido_id,
+      cobro_id: cobro.id,
+      total: monto,
+      metodo_pago: metodo,
+      estado_pago: estadoCobro,
+      usuario_id: req.usuario.id
+    })
+    .select()
+    .single()
+
+  if (errorFactura) return res.status(500).json({ error: errorFactura.message })
+
+  res.json({ ok: true, cobro, factura })
 })
 
 // PATCH /api/cobros/:id/verificar — marca una transferencia como verificada
@@ -63,6 +80,13 @@ router.patch('/:id/verificar', auth, async (req, res) => {
     .eq('id', req.params.id)
 
   if (error) return res.status(500).json({ error: error.message })
+
+  // Refleja el mismo estado en la factura emitida para ese cobro
+  await supabase
+    .from('facturas')
+    .update({ estado_pago: 'verificado' })
+    .eq('cobro_id', req.params.id)
+
   res.json({ ok: true })
 })
 

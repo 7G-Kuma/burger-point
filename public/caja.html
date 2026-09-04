@@ -450,8 +450,8 @@
   // El pedido "recibido" se confirma junto con el cobro, no aparte
   if (pedido.estado === 'recibido') {
         acciones.innerHTML = `
-      <button class="btn btn-secondary btn-full" onclick="verBoleta('${pedido.id}')">
-        🧾 Ver boleta
+      <button class="btn btn-secondary btn-full" onclick="verFactura('${pedido.id}')">
+        🧾 Ver factura
       </button>
       <button class="btn btn-primary btn-full" onclick="confirmarYCobrar('${pedido.id}', ${pedido.total}, 'efectivo')">
         💵 Confirmar — Cobrado en efectivo
@@ -481,8 +481,8 @@
   if (pedido.estado !== 'cancelado') btns.push({ estado:'cancelado', label:'✕ Cancelar pedido', clase:'btn-danger' })
 
   acciones.innerHTML = `
-    <button class="btn btn-secondary btn-full" onclick="verBoleta('${pedido.id}')">
-      🧾 Ver boleta
+    <button class="btn btn-secondary btn-full" onclick="verFactura('${pedido.id}')">
+      🧾 Ver factura
     </button>
   ` + btns.map(b => `
     <button class="btn ${b.clase} btn-full" onclick="cambiarEstado('${pedido.id}','${b.estado}')">
@@ -512,7 +512,9 @@ async function confirmarYCobrar(pedidoId, monto, metodo) {
   })
 
   if (data?.ok) {
-    toast(metodo === 'transferencia' ? 'Confirmado — transferencia pendiente de verificar' : 'Cobrado y confirmado ✓', 'ok')
+    const numFactura = cobro.factura?.numero_factura
+    const sufijo = numFactura ? ` — Factura N° ${String(numFactura).padStart(6, '0')}` : ''
+    toast((metodo === 'transferencia' ? 'Confirmado — transferencia pendiente de verificar' : 'Cobrado y confirmado ✓') + sufijo, 'ok')
     cerrarModal()
     cargarPedidos()
     cargarProductos() // el stock ya se descontó al confirmar

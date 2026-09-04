@@ -79,17 +79,17 @@ function requireAuth(rolesPermitidos = []) {
   return true
 }
 
-// Abre la boleta en PDF de un pedido en una pestaña nueva.
+// Abre la factura en PDF de un pedido en una pestaña nueva.
 // La pestaña se abre ANTES del await: si se abre después, el navegador
 // la bloquea como popup porque ya se perdió el gesto del usuario.
-async function verBoleta(pedidoId) {
+async function verFactura(pedidoId) {
   const ventana = window.open('', '_blank')
   const token = getToken()
-  const res = await fetch(`/api/pedidos/${pedidoId}/boleta`, {
+  const res = await fetch(`/api/pedidos/${pedidoId}/factura`, {
     headers: token ? { 'Authorization': `Bearer ${token}` } : {}
   })
   if (!res.ok) {
-    toast('No se pudo generar la boleta', 'danger')
+    toast('No se pudo generar la factura', 'danger')
     ventana?.close()
     return
   }
@@ -105,11 +105,12 @@ function renderNavSwitcher() {
   if (!['propietario', 'encargado'].includes(usuario.rol)) return
 
   const vistas = [
-    { href: '/panel.html',    icono: '📊', label: 'Panel' },
-    { href: '/caja.html',     icono: '🛒', label: 'Caja' },
-    { href: '/cocina.html',   icono: '🔥', label: 'Cocina' },
-    { href: '/reparto.html',  icono: '🛵', label: 'Reparto' },
-    { href: '/registro.html', icono: '🧾', label: 'Registro' }
+    { href: '/panel.html',      icono: '📊', label: 'Panel' },
+    { href: '/caja.html',       icono: '🛒', label: 'Caja' },
+    { href: '/cocina.html',     icono: '🔥', label: 'Cocina' },
+    { href: '/reparto.html',    icono: '🛵', label: 'Reparto' },
+    { href: '/inventario.html', icono: '📦', label: 'Inventario' },
+    { href: '/registro.html',   icono: '🧾', label: 'Registro' }
   ]
   const actual = location.pathname
 

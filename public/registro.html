@@ -153,6 +153,7 @@
           <thead>
             <tr>
               <th>#</th>
+              <th>Factura</th>
               <th>Fecha</th>
               <th>Canal</th>
               <th>Estado</th>
@@ -164,7 +165,7 @@
             </tr>
           </thead>
           <tbody id="tabla-registro">
-            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</td></tr>
+            <tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -235,7 +236,7 @@
     function renderTabla() {
       const tbody = document.getElementById('tabla-registro')
       if (pedidosActuales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:32px;">Sin pedidos en este rango</td></tr>`
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:32px;">Sin pedidos en este rango</td></tr>`
         return
       }
       tbody.innerHTML = pedidosActuales.map(p => {
@@ -243,6 +244,7 @@
         return `
         <tr class="fila-pedido" onclick="abrirDetalle('${p.id}')">
           <td class="mono" style="color:var(--accent);">#${p.numero_pedido}</td>
+          <td class="mono" style="color:var(--text-muted);">${p.numero_factura ? '#' + String(p.numero_factura).padStart(6, '0') : '—'}</td>
           <td style="color:var(--text-muted);font-size:12px;">${formatFecha(p.creado_en)}</td>
           <td style="text-transform:capitalize;">${p.canal}</td>
           <td>${badgeEstado(p.estado)}</td>
@@ -267,6 +269,7 @@
         </div>
 
         <div class="detalle-grid">
+          <div><div class="label">Factura</div>${p.numero_factura ? '#' + String(p.numero_factura).padStart(6, '0') : 'Sin emitir'}</div>
           <div><div class="label">Canal</div>${p.canal}</div>
           <div><div class="label">Estado</div>${badgeEstado(p.estado)}</div>
           <div><div class="label">Atendió</div>${p.atendido_por || '—'}</div>
@@ -294,7 +297,7 @@
           </div>
         ` : ''}
 
-        <button class="btn btn-primary btn-full mt-16" onclick="verBoleta('${p.id}')">🧾 Descargar boleta</button>
+        <button class="btn btn-primary btn-full mt-16" onclick="verFactura('${p.id}')">🧾 Descargar factura</button>
       `
       document.getElementById('modal-bg').style.display = 'flex'
     }

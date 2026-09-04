@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Inventario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-card);
+    }
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .stat-value { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .tab-btn.active { border-color: var(--accent); background: rgba(232,131,42,0.1); color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .insumo-row td { vertical-align: middle; }
+    .estado-chip {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .estado-normal  { background: rgba(76,175,125,0.15); color: #4caf7d; }
+    .estado-bajo    { background: rgba(245,200,66,0.15); color: #f5c842; }
+    .estado-agotado { background: rgba(217,79,61,0.15);  color: #f08070; }
+
+    /* Modal ingreso */
+    .modal-bg {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-ingreso { width: 100%; max-width: 380px; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span> · Inventario</span>
+    <div id="nav-switcher"></div>
+    <div class="navbar-right">
+      <span class="navbar-role" id="nombre-usuario"></span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div>
+        <h1>Inventario</h1>
+        <p style="margin-top:4px;">Stock de insumos y registro de ingresos de mercadería</p>
+      </div>
+      <button class="btn btn-secondary" onclick="cargarTodo()" style="font-size:13px;">↻ Actualizar</button>
+    </div>
+
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <div class="tabs">
+      <div class="tab-btn active" onclick="setTab('stock', this)">Stock actual</div>
+      <div class="tab-btn" onclick="setTab('movimientos', this)">Historial de ingresos</div>
+    </div>
+
+    <div class="tab-panel active" id="panel-stock">
+      <div class="card">
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Insumo</th>
+                <th>Stock actual</th>
+                <th>Mínimo</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-insumos">
+              <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-movimientos">
+      <div class="card">
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Insumo</th>
+                <th>Cantidad</th>
+                <th>Registrado por</th>
+                <th>Nota</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-movimientos">
+              <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="modal-bg">
+    <div class="card modal-ingreso">
+      <div class="card-header">
+        <h3 id="modal-titulo">Registrar ingreso</h3>
+        <button onclick="cerrarModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div class="input-group mt-16">
+        <label>Cantidad a ingresar</label>
+        <input type="number" id="input-cantidad" min="0" step="0.01" placeholder="0">
+      </div>
+      <div class="input-group mt-16">
+        <label>Nota (opcional)</label>
+        <input type="text" id="input-nota" placeholder="Ej: compra proveedor Fricar">
+      </div>
+      <button class="btn btn-primary btn-full mt-16" onclick="confirmarIngreso()">Registrar</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    let insumos = []
+    let insumoSeleccionado = null
+
+    window.addEventListener('load', () => {
+      if (!requireAuth(['propietario', 'encargado'])) return
+      renderNavSwitcher()
+      const usuario = getUsuario()
+      document.getElementById('nombre-usuario').textContent = usuario.nombre
+      cargarTodo()
+    })
+
+    function setTab(tab, el) {
+      document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'))
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+      el.classList.add('active')
+      document.getElementById('panel-' + tab).classList.add('active')
+      if (tab === 'movimientos') cargarMovimientos()
+    }
+
+    async function cargarTodo() {
+      await cargarInsumos()
+    }
+
+    async function cargarInsumos() {
+      const data = await api('/api/insumos')
+      if (!data) return
+      if (data.error) { toast(data.error, 'danger'); return }
+      insumos = data.insumos || []
+      renderStats()
+      renderInsumos()
+    }
+
+    function renderStats() {
+      const agotados = insumos.filter(i => i.estado === 'agotado').length
+      const bajos = insumos.filter(i => i.estado === 'bajo').length
+      const normales = insumos.filter(i => i.estado === 'normal').length
+
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card"><div class="stat-label">Insumos</div><div class="stat-value">${insumos.length}</div></div>
+        <div class="stat-card"><div class="stat-label">Normal</div><div class="stat-value text-ok">${normales}</div></div>
+        <div class="stat-card"><div class="stat-label">Stock bajo</div><div class="stat-value" style="color:var(--accent2);">${bajos}</div></div>
+        <div class="stat-card"><div class="stat-label">Agotados</div><div class="stat-value text-danger">${agotados}</div></div>
+      `
+    }
+
+    function renderInsumos() {
+      const tbody = document.getElementById('tabla-insumos')
+      if (insumos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Sin insumos cargados</td></tr>`
+        return
+      }
+      const orden = { agotado: 0, bajo: 1, normal: 2 }
+      const ordenados = [...insumos].sort((a, b) => orden[a.estado] - orden[b.estado])
+
+      tbody.innerHTML = ordenados.map(i => `
+        <tr class="insumo-row">
+          <td>${i.nombre}</td>
+          <td class="mono">${Number(i.cantidad_actual).toLocaleString('es-AR')} ${i.unidad || ''}</td>
+          <td class="mono" style="color:var(--text-muted);">${Number(i.cantidad_minima).toLocaleString('es-AR')} ${i.unidad || ''}</td>
+          <td><span class="estado-chip estado-${i.estado}">${i.estado}</span></td>
+          <td><button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="abrirModal('${i.id}', '${i.nombre.replace(/'/g, "\\'")}')">➕ Ingreso</button></td>
+        </tr>
+      `).join('')
+    }
+
+    async function cargarMovimientos() {
+      const tbody = document.getElementById('tabla-movimientos')
+      const data = await api('/api/insumos/movimientos')
+      if (!data) return
+      const movimientos = data.movimientos || []
+      if (movimientos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Todavía no se registraron ingresos</td></tr>`
+        return
+      }
+      tbody.innerHTML = movimientos.map(m => `
+        <tr>
+          <td style="color:var(--text-muted);font-size:12px;">${formatFecha(m.creado_en)}</td>
+          <td>${m.insumos?.nombre || '—'}</td>
+          <td class="mono text-ok">+${Number(m.cantidad).toLocaleString('es-AR')} ${m.insumos?.unidad || ''}</td>
+          <td>${m.usuarios?.nombre || '—'}</td>
+          <td style="color:var(--text-muted);font-size:12px;">${m.nota || '—'}</td>
+        </tr>
+      `).join('')
+    }
+
+    function abrirModal(id, nombre) {
+      insumoSeleccionado = id
+      document.getElementById('modal-titulo').textContent = 'Ingreso — ' + nombre
+      document.getElementById('input-cantidad').value = ''
+      document.getElementById('input-nota').value = ''
+      document.getElementById('modal-bg').style.display = 'flex'
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal-bg').style.display = 'none'
+    }
+
+    async function confirmarIngreso() {
+      const cantidad = document.getElementById('input-cantidad').value
+      const nota = document.getElementById('input-nota').value
+
+      if (!cantidad || Number(cantidad) <= 0) {
+        toast('Ingresá una cantidad válida', 'warning')
+        return
+      }
+
+      const data = await api(`/api/insumos/${insumoSeleccionado}/ingreso`, {
+        method: 'POST',
+        body: JSON.stringify({ cantidad: Number(cantidad), nota })
+      })
+
+      if (data?.ok) {
+        toast('Ingreso registrado ✓', 'ok')
+        cerrarModal()
+        cargarInsumos()
+      } else {
+        toast(data?.error || 'Error al registrar el ingreso', 'danger')
+      }
+    }
+  </script>
+</body>
+</html>

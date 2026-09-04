@@ -35,7 +35,8 @@ router.get('/', auth, soloAdmin, async (req, res) => {
       usuarios ( nombre ),
       pedido_items ( id, cantidad, precio_unitario, observacion, productos ( nombre ) ),
       cobros ( id, monto, estado, metodo, creado_en ),
-      incidencias ( id, tipo, descripcion, creado_en )
+      incidencias ( id, tipo, descripcion, creado_en ),
+      facturas ( numero_factura )
     `)
     .order('creado_en', { ascending: false })
     .limit(limite)
@@ -51,6 +52,7 @@ router.get('/', auth, soloAdmin, async (req, res) => {
   const pedidosConTotal = pedidos.map(p => ({
     ...p,
     atendido_por: p.usuarios?.nombre || null,
+    numero_factura: p.facturas?.[0]?.numero_factura || null,
     total: p.pedido_items?.reduce((s, i) => s + i.cantidad * Number(i.precio_unitario), 0) || 0
   }))
 

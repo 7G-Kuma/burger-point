@@ -72,8 +72,8 @@ router.get('/:id', auth, async (req, res) => {
   res.json({ pedido })
 })
 
-// GET /api/pedidos/:id/boleta — genera el comprobante del pedido en PDF
-router.get('/:id/boleta', auth, async (req, res) => {
+// GET /api/pedidos/:id/factura — genera la factura del pedido en PDF
+router.get('/:id/factura', auth, async (req, res) => {
   const supabase = getSupabase()
 
   const { data: pedido, error } = await supabase
@@ -83,7 +83,8 @@ router.get('/:id/boleta', auth, async (req, res) => {
       usuarios ( nombre ),
       pedido_items ( cantidad, precio_unitario, observacion, productos ( nombre ) ),
       cobros ( monto, estado, metodo ),
-      incidencias ( tipo, descripcion, creado_en )
+      incidencias ( tipo, descripcion, creado_en ),
+      facturas ( numero_factura, creado_en )
     `)
     .eq('id', req.params.id)
     .single()
@@ -92,21 +93,23 @@ router.get('/:id/boleta', auth, async (req, res) => {
 
   const total = pedido.pedido_items?.reduce((s, i) => s + i.cantidad * Number(i.precio_unitario), 0) || 0
   const cobro = pedido.cobros?.[0]
+  const factura = pedido.facturas?.[0]
 
   const doc = new PDFDocument({ size: 'A4', margin: 50 })
   res.setHeader('Content-Type', 'application/pdf')
-  res.setHeader('Content-Disposition', `inline; filename="boleta-${pedido.numero_pedido}.pdf"`)
+  res.setHeader('Content-Disposition', `inline; filename="factura-${factura?.numero_factura ?? pedido.numero_pedido}.pdf"`)
   doc.pipe(res)
 
   doc.circle(70, 65, 22).fill('#e8832a')
   doc.fillColor('#1a1108').font('Helvetica-Bold').fontSize(15).text('BP', 58, 56)
 
   doc.fillColor('#1a1108').font('Helvetica-Bold').fontSize(22).text('BURGER POINT', 105, 45)
-  doc.fillColor('#8a7d6e').font('Helvetica').fontSize(10).text('Comprobante de pedido', 105, 70)
+  doc.fillColor('#8a7d6e').font('Helvetica').fontSize(10)
+    .text(factura ? `Factura N° ${String(factura.numero_factura).padStart(6, '0')}` : 'Sin facturar (sin cobro registrado)', 105, 70)
 
   doc.fillColor('#1a1108').font('Helvetica-Bold').fontSize(14).text(`Pedido #${pedido.numero_pedido}`, 350, 45, { width: 195, align: 'right' })
   doc.fillColor('#8a7d6e').font('Helvetica').fontSize(9)
-    .text(new Date(pedido.creado_en).toLocaleString('es-AR'), 350, 65, { width: 195, align: 'right' })
+    .text(new Date(factura?.creado_en || pedido.creado_en).toLocaleString('es-AR'), 350, 65, { width: 195, align: 'right' })
 
   doc.moveTo(50, 105).lineTo(545, 105).strokeColor('#ddd').stroke()
 
