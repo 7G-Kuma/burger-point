@@ -1,8 +1,8 @@
 # Burger Point — Sistema de Gestión
 
-Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreSQL, São Paulo, proyecto `wvarebdeatfdlmeojzvq`) · Railway (deploy pendiente).
+Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreSQL, São Paulo, proyecto `wvarebdeatfdlmeojzvq`) · Railway (deploy en curso).
 
-## Estado general: Fase 2 — Partes 1 a 6 funcionalmente completas, falta el deploy
+## Estado general: Fase 2 — Partes 1 a 6 completas, falta solo el deploy a Railway
 
 | # | Parte | Estado |
 |---|-------|--------|
@@ -11,15 +11,16 @@ Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreS
 | 3 | Panel del propietario (estadísticas, alertas) | ✅ Completada |
 | 4 | Módulo de Pedidos (caja, carrito, menú) | ✅ Completada |
 | 5 | Vista de Cocina + Reparto | ✅ Completada — probada en circuito integral |
-| 6 | Módulo de Cobros + Deploy a Railway | 🔶 Cobros completo — deploy pendiente |
+| 6 | Módulo de Cobros + Deploy a Railway | 🔶 Cobros completo, seguridad cerrada — deploy pendiente (requiere cuenta del usuario) |
 
-Probado en vivo el 2026-09-03: caja crea pedido → cobro por transferencia queda pendiente → cocina prepara y marca listo → reparto verifica la transferencia y marca entregado → panel refleja ventas/cobrado/alertas correctamente.
+Probado en vivo el 2026-09-03: caja crea pedido → cobro por transferencia queda pendiente → cocina prepara y marca listo → reparto verifica la transferencia y marca entregado → panel refleja ventas/cobrado/alertas correctamente. Repetido con la `service_role` key activa y confirmado que el descuento de stock ahora funciona (`Queso azul` 2.00→1.00 y `Carne (medallón)` 80.00→79.00 al confirmar un Blue Cheese).
 
 ## Estructura
 
 ```
-server.js            # carga .env manual (fs.readFileSync, sin dotenv), monta rutas, sirve public/
+server.js            # carga .env si existe (Railway inyecta env vars directo, sin archivo .env), monta rutas, sirve public/
 rutas/
+  db.js              # cliente Supabase centralizado — prefiere SUPABASE_SERVICE_KEY, cae a SUPABASE_KEY
   auth.js            # POST /api/auth/login
   panel.js           # GET /api/panel/estadisticas + /alertas
   pedidos.js         # GET/POST/PATCH /api/pedidos (incluye descuento de insumos al confirmar)
@@ -37,17 +38,15 @@ public/
 
 ## Base de datos (Supabase, proyecto wvarebdeatfdlmeojzvq)
 
-Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`.
-
-El cliente Supabase está centralizado en `rutas/db.js`: usa `SUPABASE_SERVICE_KEY` si está configurada, y si no cae a `SUPABASE_KEY` (anon). Todavía corre con la anon key porque `SUPABASE_SERVICE_KEY` no está seteada (ver seguridad abajo).
+Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`. **RLS activado en las 8** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
 
 Usuarios de equipo ya creados: `admin@burgerpoint.com` (propietario), `caja@burgerpoint.com` (María), `cocina@burgerpoint.com` (Carola), `reparto@burgerpoint.com` (Juan).
 
-## Próximos pasos (orden)
+## Próximos pasos
 
-**Parte 6 — deploy a Railway (pendiente, requiere cuenta del usuario):**
+**Deploy a Railway (en curso, requiere cuenta del usuario — ver guía que se le dio en el chat):**
 1. Crear cuenta en railway.app y conectar el repo de GitHub (`7G-Kuma/burger-point`)
-2. Configurar variables de entorno en Railway: `SUPABASE_URL`, `SUPABASE_KEY`, `JWT_SECRET`, `PORT`
+2. Variables de entorno en Railway: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `JWT_SECRET` (no hace falta `PORT`, Railway lo inyecta solo y `server.js` ya lo respeta)
 3. Deploy — queda en una URL pública
 4. Prueba final desde un celular fuera de la red local
 
@@ -55,18 +54,17 @@ Usuarios de equipo ya creados: `admin@burgerpoint.com` (propietario), `caja@burg
 
 - Usar **CMD**, no PowerShell, para `npm`/`node` (bloqueo de scripts de PowerShell en este entorno).
 - Express fijado en v4 — Express 5 rompía el ciclo de vida del servidor.
-- `.env` se carga manualmente en `server.js` (sin librería `dotenv`).
-- Puerto 3000 ocupado → `taskkill /F /IM node.exe`.
+- `server.js` carga `.env` manualmente solo si el archivo existe — en Railway las variables ya vienen en `process.env` sin archivo `.env` (antes tiraba ENOENT y crasheaba el deploy; corregido 2026-09-03).
+- Puerto 3000 ocupado en local → `taskkill /F /IM node.exe`.
 - Probar login limpio en ventana de incógnito (localStorage puede tener sesión vieja).
-- El descuento de stock en `pedidos.js` (al confirmar un pedido) consulta `producto_insumos`, pero esa tabla tiene RLS activado sin políticas — con la anon key la consulta siempre devuelve vacío, así que el descuento de stock **no está funcionando realmente**. Se resuelve junto con el punto de seguridad de abajo (pasar el backend a la service_role key).
 
-## Seguridad
+## Seguridad — resuelto 2026-09-03
 
-- ✅ **JWT_SECRET rotado** (2026-09-03) — el valor viejo, expuesto en el historial de GitHub, ya no sirve para firmar ni validar tokens. Está solo en el `.env` local (gitignored).
-- ✅ **Cliente Supabase centralizado** en `rutas/db.js`, listo para preferir `SUPABASE_SERVICE_KEY` en cuanto exista.
-- ⏳ **Bloqueado — falta la service_role key del usuario**: `.env` tiene una línea comentada `SUPABASE_SERVICE_KEY=` lista para completar (Dashboard de Supabase → Project Settings → API → `service_role` secret). En cuanto esté, se aplica la migración que habilita RLS en las 7 tablas sin políticas (`usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias` — `producto_insumos` ya la tiene). Con RLS activo y sin políticas, la anon key (la que quedó expuesta en GitHub) no puede leer ni escribir nada vía la API de Supabase, y el backend sigue funcionando porque `service_role` bypasea RLS por diseño. Esto también arregla el descuento de stock roto (ver nota técnica abajo).
-- La anon key en sí no se rotó (no hay endpoint para eso vía las herramientas disponibles) — no hace falta: una vez con RLS activo, esa key queda inutilizable para terceros aunque siga expuesta en el historial viejo de git.
-- `.env` y `node_modules/` estaban commiteados en git y ya se habían subido a GitHub antes de agregar `.gitignore` (corregido el 2026-09-03). El commit viejo en el historial sigue teniendo los valores originales — reescribir el historial de git (`git filter-repo` + force-push) es una opción para borrarlos del todo, pero es una operación destructiva que no se hizo sin pedir permiso explícito.
+- ✅ **JWT_SECRET rotado** — el valor viejo, expuesto en el historial de GitHub, ya no sirve para firmar ni validar tokens.
+- ✅ **RLS habilitado en las 8 tablas de `public`** (antes solo `producto_insumos` la tenía). La anon key (expuesta en GitHub) ya no puede leer ni escribir nada vía la API de Supabase.
+- ✅ **Backend migrado a `SUPABASE_SERVICE_KEY`** vía `rutas/db.js` (bypasea RLS, nunca se expone al navegador). Confirmado funcionando end-to-end y que arregló el descuento de stock.
+- La anon key en sí no se rotó (no hay endpoint para eso vía las herramientas disponibles) — no hace falta: con RLS activo queda inutilizable para terceros aunque siga expuesta en el historial viejo de git.
+- `.env` y `node_modules/` estaban commiteados en git y ya se habían subido a GitHub antes de agregar `.gitignore` (corregido el 2026-09-03). El commit viejo en el historial sigue teniendo los valores originales (ya rotados/neutralizados) — reescribir el historial de git (`git filter-repo` + force-push) sigue disponible como limpieza opcional, no se hizo sin pedir permiso explícito por ser destructivo.
 
 ## Credenciales de desarrollo (seed)
 
