@@ -97,6 +97,22 @@ async function verFactura(pedidoId) {
   if (ventana) ventana.location.href = URL.createObjectURL(blob)
 }
 
+// Beep corto para alertar pedidos nuevos, sin depender de un archivo de audio
+function sonarAlerta() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = 880
+    gain.gain.setValueAtTime(0.15, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.4)
+  } catch {}
+}
+
 // Pinta el selector de vistas para propietario/encargado (acceso a todos los perfiles)
 function renderNavSwitcher() {
   const cont = document.getElementById('nav-switcher')

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Menú Digital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .menu-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 20px;
+    }
+    .menu-nav img { width: 40px; height: 40px; }
+    .menu-nav span { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+    .menu-nav .point { color: var(--accent); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 40px;
+    }
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .productos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+    .producto-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: var(--shadow-card);
+    }
+    .producto-btn:hover { border-color: var(--accent); background: var(--surface2); }
+    .producto-btn .nombre { font-size: 13px; font-weight: 600; }
+    .producto-btn .precio { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+    .producto-btn .stock { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
+    .producto-btn .stock.agotado { color: var(--danger); font-weight: 700; }
+    .producto-btn.sin-stock { opacity: 0.4; cursor: not-allowed; }
+
+    .carrito-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; min-height: 80px; }
+    .carrito-item { background: var(--surface2); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+    .carrito-item .nombre { flex: 1; font-size: 13px; }
+    .qty-btn { width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+    .carrito-item .subtotal { font-family: var(--mono); font-size: 12px; color: var(--accent); width: 60px; text-align: right; }
+    .total-box { background: var(--surface2); border-radius: 8px; padding: 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .total-box .monto { font-size: 26px; font-weight: 700; color: var(--ok); }
+
+    .entrega-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .entrega-tab { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; }
+    .entrega-tab.active { border-color: var(--accent); background: rgba(232,131,42,0.1); color: var(--accent); }
+
+    .confirmacion { text-align: center; padding: 20px 0; }
+    .confirmacion .num { font-family: var(--font-display); font-size: 40px; font-weight: 700; color: var(--accent); margin: 12px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="menu-nav">
+    <img src="/img/logo.svg" alt="">
+    <span>BURGER <span class="point">POINT</span> · Menú Digital</span>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="page-header">
+        <h2>Armá tu pedido</h2>
+      </div>
+      <div class="productos-grid" id="productos-grid">
+        <div style="color:var(--text-muted);font-size:13px;">Cargando menú...</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" id="card-pedido" style="position:sticky;top:20px;">
+        <div class="card-header">
+          <h3>Tu pedido</h3>
+          <button class="btn btn-secondary" onclick="limpiarCarrito()" style="font-size:12px;padding:4px 10px;">Limpiar</button>
+        </div>
+
+        <div class="carrito-items" id="carrito-items">
+          <div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0;">Seleccioná productos</div>
+        </div>
+
+        <div class="total-box">
+          <span class="label" style="font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);">Total</span>
+          <span class="monto" id="total-display">$0</span>
+        </div>
+
+        <div class="entrega-tabs">
+          <div class="entrega-tab active" onclick="setEntrega('retiro', this)">🏠 Retiro en el local</div>
+          <div class="entrega-tab" onclick="setEntrega('delivery', this)">🛵 Delivery</div>
+        </div>
+
+        <div class="input-group mt-8">
+          <label>Tu nombre</label>
+          <input type="text" id="cliente-nombre" placeholder="Nombre y apellido">
+        </div>
+        <div class="input-group mt-8">
+          <label>Teléfono</label>
+          <input type="tel" id="cliente-telefono" placeholder="Para avisarte del pedido">
+        </div>
+        <div class="input-group mt-8" id="grupo-direccion" style="display:none;">
+          <label>Dirección de entrega</label>
+          <input type="text" id="cliente-direccion" placeholder="Calle, número, referencia">
+        </div>
+        <div class="input-group mt-8">
+          <label>Observaciones (opcional)</label>
+          <input type="text" id="observaciones" placeholder="Sin cebolla, timbre roto...">
+        </div>
+
+        <button class="btn btn-primary btn-full mt-16" onclick="confirmarPedido()" id="btn-confirmar">
+          Confirmar pedido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    let productos = []
+    let carrito = []
+    let tipoEntrega = 'retiro'
+
+    window.addEventListener('load', () => {
+      cargarMenu()
+    })
+
+    function setEntrega(tipo, el) {
+      tipoEntrega = tipo
+      document.querySelectorAll('.entrega-tab').forEach(t => t.classList.remove('active'))
+      el.classList.add('active')
+      document.getElementById('grupo-direccion').style.display = tipo === 'delivery' ? 'flex' : 'none'
+    }
+
+    async function cargarMenu() {
+      const res = await fetch('/api/menu')
+      const data = await res.json()
+      productos = data.productos || []
+      const grid = document.getElementById('productos-grid')
+      if (productos.length === 0) {
+        grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">El menú no está disponible en este momento</div>`
+        return
+      }
+      grid.innerHTML = productos.map(p => {
+        const sinStock = p.disponible !== null && p.disponible <= 0
+        return `
+        <div class="producto-btn ${sinStock ? 'sin-stock' : ''}" onclick="${sinStock ? '' : `agregarAlCarrito('${p.id}')`}">
+          <span class="nombre">${p.nombre}</span>
+          <span class="precio">$${Number(p.precio).toLocaleString('es-AR')}</span>
+          ${sinStock ? '<span class="stock agotado">Agotado</span>' : ''}
+        </div>`
+      }).join('')
+    }
+
+    function agregarAlCarrito(productoId) {
+      const prod = productos.find(p => p.id === productoId)
+      if (!prod) return
+      const existe = carrito.find(i => i.producto_id === productoId)
+      const enCarrito = existe ? existe.cantidad : 0
+
+      if (prod.disponible !== null && enCarrito + 1 > prod.disponible) {
+        toast(`No hay más stock de "${prod.nombre}"`, 'warning')
+        return
+      }
+
+      if (existe) existe.cantidad++
+      else carrito.push({ producto_id: productoId, nombre: prod.nombre, precio_unitario: prod.precio, cantidad: 1 })
+      renderCarrito()
+    }
+
+    function cambiarCantidad(productoId, delta) {
+      const item = carrito.find(i => i.producto_id === productoId)
+      if (!item) return
+      if (delta > 0) {
+        const prod = productos.find(p => p.id === productoId)
+        if (prod?.disponible !== null && item.cantidad + delta > prod.disponible) {
+          toast(`No hay más stock de "${prod.nombre}"`, 'warning')
+          return
+        }
+      }
+      item.cantidad += delta
+      if (item.cantidad <= 0) carrito = carrito.filter(i => i.producto_id !== productoId)
+      renderCarrito()
+    }
+
+    function limpiarCarrito() {
+      carrito = []
+      renderCarrito()
+    }
+
+    function renderCarrito() {
+      const cont = document.getElementById('carrito-items')
+      if (carrito.length === 0) {
+        cont.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0;">Seleccioná productos</div>`
+        document.getElementById('total-display').textContent = '$0'
+        return
+      }
+      cont.innerHTML = carrito.map(i => `
+        <div class="carrito-item">
+          <span class="nombre">${i.nombre}</span>
+          <button class="qty-btn" onclick="cambiarCantidad('${i.producto_id}', -1)">−</button>
+          <span style="font-size:14px;font-weight:600;width:16px;text-align:center;">${i.cantidad}</span>
+          <button class="qty-btn" onclick="cambiarCantidad('${i.producto_id}', 1)">+</button>
+          <span class="subtotal">$${(i.cantidad * i.precio_unitario).toLocaleString('es-AR')}</span>
+        </div>
+      `).join('')
+      const total = carrito.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0)
+      document.getElementById('total-display').textContent = '$' + total.toLocaleString('es-AR')
+    }
+
+    async function confirmarPedido() {
+      if (carrito.length === 0) { toast('Agregá al menos un producto', 'warning'); return }
+
+      const nombre = document.getElementById('cliente-nombre').value.trim()
+      const telefono = document.getElementById('cliente-telefono').value.trim()
+      const direccion = document.getElementById('cliente-direccion').value.trim()
+
+      if (!nombre || !telefono) { toast('Completá tu nombre y teléfono', 'warning'); return }
+      if (tipoEntrega === 'delivery' && !direccion) { toast('Completá la dirección de entrega', 'warning'); return }
+
+      const btn = document.getElementById('btn-confirmar')
+      btn.disabled = true
+      btn.textContent = 'Enviando...'
+
+      const res = await fetch('/api/menu/pedido', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo_entrega: tipoEntrega,
+          cliente_nombre: nombre,
+          cliente_telefono: telefono,
+          cliente_direccion: direccion,
+          observaciones: document.getElementById('observaciones').value,
+          items: carrito.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad }))
+        })
+      })
+      const data = await res.json()
+
+      btn.disabled = false
+      btn.textContent = 'Confirmar pedido'
+
+      if (data?.ok) {
+        mostrarConfirmacion(data.pedido.numero_pedido)
+      } else {
+        toast(data?.error || 'Error al enviar el pedido', 'danger')
+      }
+    }
+
+    function mostrarConfirmacion(numero) {
+      document.getElementById('card-pedido').innerHTML = `
+        <div class="confirmacion">
+          <div style="font-size:40px;">✅</div>
+          <p>¡Pedido recibido!</p>
+          <div class="num">#${numero}</div>
+          <p style="margin-bottom:16px;">Ya le avisamos a Burger Point — te va a llegar una confirmación.</p>
+          <a class="btn btn-primary btn-full" href="/seguimiento.html?numero=${numero}">Seguir mi pedido</a>
+          <button class="btn btn-secondary btn-full mt-8" onclick="location.reload()">Hacer otro pedido</button>
+        </div>
+      `
+    }
+  </script>
+</body>
+</html>

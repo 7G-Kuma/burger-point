@@ -139,6 +139,7 @@
           <option value="presencial">Presencial</option>
           <option value="whatsapp">WhatsApp</option>
           <option value="delivery">Delivery</option>
+          <option value="online">Online (menú digital)</option>
         </select>
       </div>
       <button class="btn btn-primary" onclick="cargarRegistro()">Buscar</button>
@@ -277,6 +278,13 @@
           <div><div class="label">Creado</div>${new Date(p.creado_en).toLocaleString('es-AR')}</div>
           <div><div class="label">Actualizado</div>${new Date(p.actualizado_en).toLocaleString('es-AR')}</div>
         </div>
+
+        ${p.cliente_nombre ? `
+          <div style="background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:12px;">
+            🌐 <strong>Pedido online</strong> — ${p.cliente_nombre} · ${p.cliente_telefono || ''}
+            ${p.cliente_direccion ? '<br>📍 ' + p.cliente_direccion : ''}
+          </div>
+        ` : ''}
 
         <div class="detalle-items">
           ${p.pedido_items?.map(i => `

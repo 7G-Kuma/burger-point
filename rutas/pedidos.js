@@ -30,6 +30,7 @@ router.get('/', auth, async (req, res) => {
     .select(`
       id, numero_pedido, canal, estado,
       observaciones, creado_en,
+      cliente_nombre, cliente_telefono, cliente_direccion,
       pedido_items (
         cantidad, precio_unitario, observacion,
         productos ( nombre )
@@ -59,6 +60,7 @@ router.get('/:id', auth, async (req, res) => {
     .from('pedidos')
     .select(`
       id, numero_pedido, canal, estado, observaciones, creado_en,
+      cliente_nombre, cliente_telefono, cliente_direccion,
       pedido_items (
         id, cantidad, precio_unitario, observacion,
         productos ( id, nombre, precio )
@@ -80,6 +82,7 @@ router.get('/:id/factura', auth, async (req, res) => {
     .from('pedidos')
     .select(`
       numero_pedido, canal, estado, observaciones, creado_en,
+      cliente_nombre, cliente_telefono, cliente_direccion,
       usuarios ( nombre ),
       pedido_items ( cantidad, precio_unitario, observacion, productos ( nombre ) ),
       cobros ( monto, estado, metodo ),
@@ -118,9 +121,19 @@ router.get('/:id/factura', auth, async (req, res) => {
   doc.text(`Canal: ${pedido.canal}`, 50, y)
   doc.text(`Estado: ${pedido.estado}`, 300, y)
   y += 16
-  doc.text(`Atendido por: ${pedido.usuarios?.nombre || '—'}`, 50, y)
+  doc.text(`Atendido por: ${pedido.usuarios?.nombre || (pedido.cliente_nombre ? 'Pedido online' : '—')}`, 50, y)
   if (cobro) doc.text(`Pago: ${cobro.metodo} (${cobro.estado})`, 300, y)
-  y += 32
+  y += 16
+
+  if (pedido.cliente_nombre) {
+    doc.text(`Cliente: ${pedido.cliente_nombre} · ${pedido.cliente_telefono || ''}`, 50, y)
+    y += 16
+    if (pedido.cliente_direccion) {
+      doc.text(`Dirección: ${pedido.cliente_direccion}`, 50, y)
+      y += 16
+    }
+  }
+  y += 16
 
   doc.font('Helvetica-Bold').fontSize(10).fillColor('#1a1108')
   doc.text('Cant', 50, y)

@@ -171,6 +171,15 @@
       transition: border-color 0.15s;
     }
     .pedido-card:hover { border-color: var(--accent); }
+    .pedido-card.pedido-online {
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 1px rgba(245,200,66,0.4);
+      animation: pulso-online 2s ease-in-out 3;
+    }
+    @keyframes pulso-online {
+      0%, 100% { box-shadow: 0 0 0 1px rgba(245,200,66,0.4); }
+      50% { box-shadow: 0 0 0 4px rgba(245,200,66,0.25); }
+    }
     .pedido-num {
       font-family: var(--mono);
       font-size: 13px;
@@ -286,6 +295,7 @@
     let carrito  = []
     let productos = []
     let canalActual = 'presencial'
+    let idsConocidos = null // null = todavía no cargamos nada; evita alertar en la primera carga
 
     window.addEventListener('load', () => {
       if (!requireAuth(['caja', 'encargado', 'propietario'])) return
@@ -293,6 +303,7 @@
       cargarProductos()
       cargarPedidos()
       setInterval(cargarProductos, 15000) // refleja el stock que va gastando cocina
+      setInterval(cargarPedidos, 8000)    // detecta pedidos online sin que nadie los cargue a mano
     })
 
     function setCanal(canal, el) {
@@ -421,17 +432,31 @@
     async function cargarPedidos() {
       const data = await api('/api/pedidos')
       if (!data) return
+
+      const pedidos = data.pedidos || []
+      const esOnline = p => !!p.cliente_nombre
+
+      // Alerta si aparece un pedido de autoservicio (menú digital) que no vimos antes
+      if (idsConocidos !== null) {
+        const nuevos = pedidos.filter(p => esOnline(p) && !idsConocidos.has(p.id))
+        if (nuevos.length > 0) {
+          sonarAlerta()
+          nuevos.forEach(p => toast(`🌐 Pedido online #${p.numero_pedido} — ${p.cliente_nombre}`, 'warning'))
+        }
+      }
+      idsConocidos = new Set(pedidos.map(p => p.id))
+
       const lista = document.getElementById('pedidos-lista')
-      if (!data.pedidos || data.pedidos.length === 0) {
+      if (pedidos.length === 0) {
         lista.innerHTML = `<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:24px;">Sin pedidos hoy</div>`
         return
       }
-      lista.innerHTML = data.pedidos.map(p => `
-        <div class="pedido-card" onclick="abrirModal(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+      lista.innerHTML = pedidos.map(p => `
+        <div class="pedido-card ${esOnline(p) ? 'pedido-online' : ''}" onclick="abrirModal(${JSON.stringify(p).replace(/"/g, '&quot;')})">
           <span class="pedido-num">#${p.numero_pedido}</span>
           <div class="pedido-info">
-            <div class="items-text">${p.pedido_items?.map(i => i.productos?.nombre).join(', ') || '—'}</div>
-            <div class="meta">${p.canal} · $${(p.total||0).toLocaleString('es-AR')} · ${formatFecha(p.creado_en)}</div>
+            <div class="items-text">${esOnline(p) ? '🌐 ' : ''}${p.pedido_items?.map(i => i.productos?.nombre).join(', ') || '—'}</div>
+            <div class="meta">${p.canal} · $${(p.total||0).toLocaleString('es-AR')} · ${formatFecha(p.creado_en)}${esOnline(p) ? ' · ' + p.cliente_nombre : ''}</div>
           </div>
           ${badgeEstado(p.estado)}
         </div>
@@ -440,10 +465,16 @@
 
     function abrirModal(pedido) {
   document.getElementById('modal-titulo').textContent = 'Pedido #' + pedido.numero_pedido
-  document.getElementById('modal-items').innerHTML =
-    pedido.pedido_items?.map(i =>
+  const cliente = pedido.cliente_nombre ? `
+    <div style="background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;">
+      🌐 <strong>Pedido online</strong> — ${pedido.canal === 'delivery' ? 'Delivery' : 'Retiro en el local'}<br>
+      ${pedido.cliente_nombre} · ${pedido.cliente_telefono || ''}
+      ${pedido.cliente_direccion ? '<br>📍 ' + pedido.cliente_direccion : ''}
+    </div>` : ''
+  document.getElementById('modal-items').innerHTML = cliente +
+    (pedido.pedido_items?.map(i =>
       `${i.cantidad}x ${i.productos?.nombre}${i.observacion ? ' <em>('+i.observacion+')</em>' : ''}`
-    ).join('<br>') || '—'
+    ).join('<br>') || '—')
 
   const acciones = document.getElementById('modal-acciones')
 

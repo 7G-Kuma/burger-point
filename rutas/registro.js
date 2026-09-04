@@ -32,6 +32,7 @@ router.get('/', auth, soloAdmin, async (req, res) => {
     .from('pedidos')
     .select(`
       id, numero_pedido, canal, estado, observaciones, creado_en, actualizado_en,
+      cliente_nombre, cliente_telefono, cliente_direccion,
       usuarios ( nombre ),
       pedido_items ( id, cantidad, precio_unitario, observacion, productos ( nombre ) ),
       cobros ( id, monto, estado, metodo, creado_en ),
