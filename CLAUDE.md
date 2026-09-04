@@ -30,12 +30,15 @@ rutas/
   productos.js       # GET/POST /api/productos (incluye `disponible` por producto)
   incidencias.js     # POST /api/incidencias (BR-04)
   cobros.js          # POST /api/cobros, PATCH /api/cobros/:id/verificar
+  seguimiento.js     # GET /api/seguimiento/:numero — PÚBLICO, sin auth, para que el cliente consulte su pedido
 public/
-  index.html         # login
+  img/logo.svg       # logo propio (badge circular con hamburguesa), usado como favicon en las 6 páginas
+  index.html         # login — link a seguimiento.html para el cliente
   panel.html         # propietario/encargado
   caja.html          # caja/encargado — crea pedidos, muestra stock por producto (bloquea si no alcanza) y cobra (efectivo/tarjeta/transferencia)
   cocina.html        # cocina — temporizador, cambio de estado, registro de errores
   reparto.html       # reparto — entregas del turno, verificar transferencia pendiente
+  seguimiento.html   # pública, sin login — el cliente ve el estado de su pedido por número
 .claude/launch.json  # config para levantar el servidor desde el preview del editor
 ```
 
@@ -62,6 +65,18 @@ Bug real encontrado y resuelto durante el primer deploy (2026-09-03): las variab
 Se cargaron recetas de prueba para `Agua` → `Agua (botella)` y `Gaseosa` → `Gaseosa (botella)` (antes no tenían insumo asociado, por eso no mostraban stock). Datos de stock actuales son los que ya había en la tabla `insumos` más algunos ajustados a mano para la demo: `Queso azul` bajo (Blue Cheese casi agotado) y `Aceite de trufa` en 0 (Papas Parmesano & Trufa agotada) — sirven para mostrar los tres estados (normal/bajo/agotado) al presentar.
 
 **Importante sobre el momento del descuento**: el stock se descuenta cuando caja confirma el cobro (pedido pasa a `confirmado`), no cuando cocina marca "listo". Se decidió así porque el descuento ya estaba implementado en ese punto del flujo desde antes — funcionalmente el efecto es el mismo que pedía el usuario (la caja ve que se agotó algo después de que se vendió), solo que se reserva el insumo al aceptar el pedido en vez de al terminar de cocinarlo.
+
+## Identidad visual y logo (2026-09-03)
+
+Logo propio en `public/img/logo.svg` (badge circular, hamburguesa ilustrada en flat design, gradiente naranja/amarillo de marca) — reemplaza el emoji 🍔 que se usaba antes, y sirve de favicon en las 6 páginas. `estilos.css` suma `Space Grotesk` como fuente de títulos (sobre DM Sans/DM Mono que ya estaban), fondo con gradiente radial sutil, botones primarios con degradé y sombra, tarjetas con `box-shadow`, navbar con blur — mismo esquema de color oscuro/naranja, más pulido. Cambios centralizados en `estilos.css`; cada página solo cambió el navbar (logo + wordmark) y el link de fuentes de Google (sumó `Space+Grotesk`).
+
+## Seguimiento de pedido para el cliente (2026-09-03)
+
+`public/seguimiento.html` — página pública (sin login), el cliente ingresa el número de pedido (el mismo `numero_pedido` que ve caja) y ve un stepper visual con 5 pasos que cambian de label según el canal: Recibido → Confirmado → Cocinando → **Listo para retirar** (presencial/whatsapp) o **En camino** (delivery) → Entregado/Retirado. Estado `cancelado` muestra una tarjeta roja aparte, sin stepper. Se auto-refresca cada 10s hasta llegar a un estado terminal (entregado/cancelado). Soporta `?numero=N` en la URL para linkear directo.
+
+Respaldado por `rutas/seguimiento.js` — `GET /api/seguimiento/:numero`, sin middleware de auth (el cliente no tiene cuenta). Devuelve estado, canal, items, total y el método/estado del cobro. Bajo riesgo de exponer esto sin auth: `pedidos` no guarda ningún dato personal del cliente (ni nombre ni teléfono), solo lo operativo.
+
+Falta (no pedido todavía, posible mejora futura): compartirle el link/número al cliente automáticamente al crear el pedido en caja — hoy caja tendría que decírselo de palabra o por WhatsApp a mano.
 
 ## Notas técnicas conocidas
 
