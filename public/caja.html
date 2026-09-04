@@ -48,6 +48,22 @@
       font-size: 12px;
       color: var(--accent);
     }
+    .producto-btn .stock {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+    .producto-btn .stock.ok   { color: var(--text-muted); }
+    .producto-btn .stock.bajo { color: var(--accent2); }
+    .producto-btn .stock.agotado { color: var(--danger); font-weight: 700; }
+    .producto-btn.sin-stock {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .producto-btn.sin-stock:hover {
+      border-color: var(--border);
+      background: var(--surface);
+    }
     .carrito-items {
       display: flex;
       flex-direction: column;
@@ -273,6 +289,7 @@
       if (!requireAuth(['caja', 'encargado', 'propietario'])) return
       cargarProductos()
       cargarPedidos()
+      setInterval(cargarProductos, 15000) // refleja el stock que va gastando cocina
     })
 
     function setCanal(canal, el) {
@@ -290,18 +307,30 @@
         grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">Sin productos cargados</div>`
         return
       }
-      grid.innerHTML = productos.map(p => `
-        <div class="producto-btn" onclick="agregarAlCarrito('${p.id}')">
+      grid.innerHTML = productos.map(p => {
+        const sinStock = p.disponible !== null && p.disponible <= 0
+        const stockClase = p.disponible === null ? '' : p.disponible <= 0 ? 'agotado' : p.disponible <= 5 ? 'bajo' : 'ok'
+        const stockTexto = p.disponible === null ? '' : p.disponible <= 0 ? 'Agotado' : `Quedan ${p.disponible}`
+        return `
+        <div class="producto-btn ${sinStock ? 'sin-stock' : ''}" onclick="${sinStock ? '' : `agregarAlCarrito('${p.id}')`}">
           <span class="nombre">${p.nombre}</span>
           <span class="precio">$${Number(p.precio).toLocaleString('es-AR')}</span>
-        </div>
-      `).join('')
+          ${stockTexto ? `<span class="stock ${stockClase}">${stockTexto}</span>` : ''}
+        </div>`
+      }).join('')
     }
 
     function agregarAlCarrito(productoId) {
       const prod = productos.find(p => p.id === productoId)
       if (!prod) return
       const existe = carrito.find(i => i.producto_id === productoId)
+      const cantidadEnCarrito = existe ? existe.cantidad : 0
+
+      if (prod.disponible !== null && cantidadEnCarrito + 1 > prod.disponible) {
+        toast(`No hay más stock de "${prod.nombre}" (quedan ${prod.disponible})`, 'warning')
+        return
+      }
+
       if (existe) {
         existe.cantidad++
       } else {
@@ -313,6 +342,15 @@
     function cambiarCantidad(productoId, delta) {
       const item = carrito.find(i => i.producto_id === productoId)
       if (!item) return
+
+      if (delta > 0) {
+        const prod = productos.find(p => p.id === productoId)
+        if (prod?.disponible !== null && item.cantidad + delta > prod.disponible) {
+          toast(`No hay más stock de "${prod.nombre}" (quedan ${prod.disponible})`, 'warning')
+          return
+        }
+      }
+
       item.cantidad += delta
       if (item.cantidad <= 0) carrito = carrito.filter(i => i.producto_id !== productoId)
       renderCarrito()
@@ -467,6 +505,7 @@ async function confirmarYCobrar(pedidoId, monto, metodo) {
     toast(metodo === 'transferencia' ? 'Confirmado — transferencia pendiente de verificar' : 'Cobrado y confirmado ✓', 'ok')
     cerrarModal()
     cargarPedidos()
+    cargarProductos() // el stock ya se descontó al confirmar
   } else {
     toast('Error al confirmar el pedido', 'danger')
   }

@@ -1,6 +1,7 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
 const { getSupabase } = require('./db')
+const { obtenerDisponibilidad } = require('./stock')
 
 const router = express.Router()
 
@@ -77,6 +78,15 @@ router.post('/', auth, async (req, res) => {
 
   if (!items || items.length === 0) {
     return res.status(400).json({ error: 'El pedido debe tener al menos un producto' })
+  }
+
+  const disponibilidad = await obtenerDisponibilidad(supabase, items.map(i => i.producto_id))
+  const sinStock = items.find(i => disponibilidad[i.producto_id] !== undefined && i.cantidad > disponibilidad[i.producto_id])
+  if (sinStock) {
+    const { data: producto } = await supabase.from('productos').select('nombre').eq('id', sinStock.producto_id).single()
+    return res.status(400).json({
+      error: `No hay stock suficiente de "${producto?.nombre || 'un producto'}" (quedan ${disponibilidad[sinStock.producto_id]})`
+    })
   }
 
   const { data: pedido, error: errorPedido } = await supabase

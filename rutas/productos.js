@@ -1,6 +1,7 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
 const { getSupabase } = require('./db')
+const { obtenerDisponibilidad } = require('./stock')
 
 const router = express.Router()
 
@@ -24,7 +25,15 @@ router.get('/', auth, async (req, res) => {
     .eq('activo', true)
     .order('nombre')
   if (error) return res.status(500).json({ error: error.message })
-  res.json({ productos: data })
+
+  const disponibilidad = await obtenerDisponibilidad(supabase)
+  const productos = data.map(p => ({
+    ...p,
+    // null = sin receta de insumos cargada, no se controla el stock de ese producto
+    disponible: disponibilidad[p.id] ?? null
+  }))
+
+  res.json({ productos })
 })
 
 // POST /api/productos — agregar producto al menú
