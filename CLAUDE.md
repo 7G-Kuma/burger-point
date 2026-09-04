@@ -108,6 +108,12 @@ Nota de seguridad actualizada: desde que existe `menu.html`, `pedidos` **sí** g
 - Caja sigue siendo el filtro humano: un pedido online entra en estado `recibido` igual que uno cargado a mano, y todavía hace falta que caja elija el método de pago y confirme para que pase a cocina — lo que se automatizó es la **carga** del pedido y el **aviso**, no se salteó el control de caja sobre el cobro.
 - Probado de punta a punta: pedido de delivery desde el menú → aparece resaltado en caja con los datos del cliente → caja confirma → stock se descuenta → factura se emite → `seguimiento.html` muestra "Confirmado, ya lo mandamos a cocina" con el paso "En camino" (o "Listo para retirar" si el canal es `online`).
 
+## Contenido del menú digital: descripciones reales + fotos pendientes (2026-09-04)
+
+- **`productos.descripcion`** (columna nueva): completada a mano para los 16 productos activos, redactada a partir de la receta real de cada uno (`producto_insumos` + `insumos`), no inventada — si el usuario cambia una receta, la descripción puede quedar desactualizada y conviene revisarla.
+- **Sin generador de imágenes disponible en este entorno** — no se pudieron crear fotos ni renders realistas. En su lugar: `menu.html` ya tiene el layout listo para imagen (`producto-img` con fallback "Foto próximamente" si el archivo no existe) apuntando a `/img/productos/<slug>.jpg`, donde `<slug>` sale de `slugify(nombre)` en el propio `menu.html` (minúsculas, sin acentos, `&`→`y`, espacios→guiones). En cuanto exista el archivo con el nombre exacto, aparece solo, sin tocar código.
+- **`docs/prompts-fotos-menu.md`**: un prompt de foto por producto (16), armado con los ingredientes reales de cada receta, más un párrafo de "estilo general" para que las 16 fotos queden visualmente consistentes entre sí. Pensado para pegar en Midjourney/DALL-E/Gemini y después subir el resultado con el nombre de archivo que indica la tabla del documento.
+
 ## Pendiente de la última ronda de pedidos (no implementado todavía)
 
 El usuario pidió seis cosas grandes de una — se está entregando de a una, en el orden que él priorizó. Ya hechas: inventario + factura, menú digital + auto-notificación (arriba). **Todavía faltan**:
