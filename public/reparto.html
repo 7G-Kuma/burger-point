@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Reparto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .reparto-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .pedido-reparto {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .pedido-reparto.pendiente-cobro {
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 1px rgba(245,200,66,0.3);
+    }
+    .reparto-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .reparto-num {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .reparto-canal {
+      font-size: 11px;
+      text-transform: capitalize;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .reparto-items {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .reparto-cobro {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .cobro-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .cobro-cobrado, .cobro-verificado {
+      background: rgba(76,175,125,0.15); color: #4caf7d; border: 1px solid rgba(76,175,125,0.3);
+    }
+    .cobro-pendiente {
+      background: rgba(245,200,66,0.15); color: #f5c842; border: 1px solid rgba(245,200,66,0.3);
+    }
+    .reparto-footer {
+      display: flex;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand">🍔 BURGER POINT — Reparto</span>
+    <div class="navbar-right">
+      <span class="navbar-role" id="nombre-usuario"></span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="page-header" style="max-width:720px;margin:24px auto 0;padding:0 24px;">
+    <h2>Entregas del turno</h2>
+    <button class="btn btn-secondary" onclick="cargarPedidos()" style="font-size:12px;padding:6px 12px;">↻</button>
+  </div>
+
+  <div class="reparto-list" id="reparto-list">
+    <div class="empty-state">
+      <div class="empty-icon">🛵</div>
+      <h3>Cargando entregas...</h3>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      if (!requireAuth(['reparto', 'encargado', 'propietario'])) return
+      const usuario = getUsuario()
+      document.getElementById('nombre-usuario').textContent = usuario.nombre
+      cargarPedidos()
+      setInterval(cargarPedidos, 15000)
+    })
+
+    async function cargarPedidos() {
+      const data = await api('/api/pedidos?limite=100')
+      if (!data) return
+
+      const pedidos = (data.pedidos || []).filter(p =>
+        ['listo', 'entregado'].includes(p.estado)
+      )
+
+      const lista = document.getElementById('reparto-list')
+
+      if (pedidos.length === 0) {
+        lista.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">✅</div>
+            <h3>Sin entregas pendientes</h3>
+            <p>Los pedidos listos para salir van a aparecer acá</p>
+          </div>`
+        return
+      }
+
+      lista.innerHTML = pedidos.map(p => {
+        const cobro = p.cobros?.[0]
+        const pendienteCobro = cobro && cobro.estado === 'pendiente'
+
+        return `
+          <div class="pedido-reparto ${pendienteCobro ? 'pendiente-cobro' : ''}">
+            <div class="reparto-header">
+              <div>
+                <div class="reparto-num">#${p.numero_pedido}</div>
+                <div class="reparto-canal">${p.canal}</div>
+              </div>
+              ${badgeEstado(p.estado)}
+            </div>
+
+            <div class="reparto-items">
+              ${p.pedido_items?.map(i => `${i.cantidad}x ${i.productos?.nombre}`).join(', ') || '—'}
+              — <span class="mono text-accent">$${(p.total || 0).toLocaleString('es-AR')}</span>
+            </div>
+
+            ${cobro ? `
+              <div class="reparto-cobro">
+                <span class="cobro-badge cobro-${cobro.estado}">${cobro.metodo} · ${cobro.estado}</span>
+              </div>
+            ` : `
+              <div class="reparto-cobro">
+                <span class="cobro-badge cobro-pendiente">sin cobro registrado</span>
+              </div>
+            `}
+
+            <div class="reparto-footer">
+              ${p.estado === 'listo' ? `
+                <button class="btn btn-ok btn-full" onclick="marcarEntregado('${p.id}')">
+                  ✓ Marcar entregado
+                </button>` : ''}
+              ${pendienteCobro ? `
+                <button class="btn btn-primary" onclick="verificarTransferencia('${cobro.id}')" style="flex-shrink:0;">
+                  🏦 Confirmar transferencia
+                </button>` : ''}
+            </div>
+          </div>`
+      }).join('')
+    }
+
+    async function marcarEntregado(pedidoId) {
+      const data = await api(`/api/pedidos/${pedidoId}/estado`, {
+        method: 'PATCH',
+        body: JSON.stringify({ estado: 'entregado' })
+      })
+      if (data?.ok) {
+        toast('Pedido entregado', 'ok')
+        cargarPedidos()
+      } else {
+        toast('Error al actualizar', 'danger')
+      }
+    }
+
+    async function verificarTransferencia(cobroId) {
+      const data = await api(`/api/cobros/${cobroId}/verificar`, { method: 'PATCH' })
+      if (data?.ok) {
+        toast('Transferencia verificada', 'ok')
+        cargarPedidos()
+      } else {
+        toast('Error al verificar', 'danger')
+      }
+    }
+  </script>
+</body>
+</html>

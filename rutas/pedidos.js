@@ -36,7 +36,7 @@ router.get('/', auth, async (req, res) => {
         cantidad, precio_unitario, observacion,
         productos ( nombre )
       ),
-      cobros ( monto, estado, metodo )
+      cobros ( id, monto, estado, metodo )
     `)
     .gte('creado_en', hoy.toISOString())
     .order('creado_en', { ascending: false })
