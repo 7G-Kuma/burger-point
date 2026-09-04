@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Seguí tu pedido</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 480px;
+    }
+    .brand-mini {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .brand-mini img { width: 40px; height: 40px; }
+    .brand-mini span {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .brand-mini .point { color: var(--accent); }
+
+    .buscador {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .buscador input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 18px;
+      letter-spacing: 1px;
+      padding: 12px 16px;
+      outline: none;
+      text-align: center;
+    }
+    .buscador input:focus { border-color: var(--accent); }
+
+    .resultado {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow-card);
+      padding: 28px 22px;
+      position: relative;
+      overflow: hidden;
+    }
+    .resultado::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+    }
+    .resultado.cancelado::before { background: var(--danger); }
+
+    .resultado-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .resultado-num {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .resultado-canal {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .estado-mensaje {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 14px 0 26px;
+      text-align: center;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: var(--surface2);
+    }
+    .estado-mensaje.cancelado { color: var(--danger); background: rgba(217,79,61,0.1); }
+
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      position: relative;
+    }
+    .stepper::before {
+      content: '';
+      position: absolute;
+      top: 17px;
+      left: 30px;
+      right: 30px;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+    .stepper-fill {
+      position: absolute;
+      top: 17px;
+      left: 30px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      z-index: 1;
+      transition: width 0.4s ease;
+    }
+    .step {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+    .step-dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      color: var(--text-muted);
+      transition: all 0.3s;
+    }
+    .step.activo .step-dot,
+    .step.hecho .step-dot {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: #1a1108;
+    }
+    .step.activo .step-dot { box-shadow: 0 0 0 5px rgba(232,131,42,0.18); }
+    .step-label {
+      font-size: 10px;
+      text-align: center;
+      color: var(--text-muted);
+      max-width: 64px;
+      line-height: 1.3;
+    }
+    .step.activo .step-label, .step.hecho .step-label { color: var(--text); }
+
+    .items-list {
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .items-list .item-row { display: flex; justify-content: space-between; color: var(--text-muted); }
+    .items-list .item-row span:first-child { color: var(--text); }
+    .items-total {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+    .error-box {
+      text-align: center;
+      color: var(--danger);
+      font-size: 13px;
+      padding: 16px;
+      display: none;
+    }
+    .volver-link {
+      display: block;
+      text-align: center;
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .volver-link a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+    <div class="brand-mini">
+      <img src="/img/logo.svg" alt="Burger Point">
+      <span>BURGER <span class="point">POINT</span></span>
+    </div>
+
+    <div class="buscador">
+      <input type="text" inputmode="numeric" id="numero" placeholder="N° de pedido, ej: 16">
+      <button class="btn btn-primary" onclick="buscar()">Buscar</button>
+    </div>
+
+    <p class="error-box" id="error-box"></p>
+
+    <div class="resultado" id="resultado" style="display:none;"></div>
+
+    <p class="volver-link"><a href="/index.html">Volver al login</a></p>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    let numeroActual = null
+    let intervalo = null
+
+    const PASOS_PICKUP   = [
+      { estado: 'recibido',       icono: '🧾', label: 'Recibido' },
+      { estado: 'confirmado',     icono: '✅', label: 'Confirmado' },
+      { estado: 'en_preparacion', icono: '🔥', label: 'Cocinando' },
+      { estado: 'listo',          icono: '🛎️', label: 'Listo para retirar' },
+      { estado: 'entregado',      icono: '🍔', label: 'Retirado' }
+    ]
+    const PASOS_DELIVERY = [
+      { estado: 'recibido',       icono: '🧾', label: 'Recibido' },
+      { estado: 'confirmado',     icono: '✅', label: 'Confirmado' },
+      { estado: 'en_preparacion', icono: '🔥', label: 'Cocinando' },
+      { estado: 'listo',          icono: '🛵', label: 'En camino' },
+      { estado: 'entregado',      icono: '🍔', label: 'Entregado' }
+    ]
+
+    const MENSAJES = {
+      recibido:       'Tu pedido está siendo revisado.',
+      confirmado:     'Confirmado — ya lo mandamos a cocina.',
+      en_preparacion: '¡Se está cocinando! Tiempo estimado 15-20 min.',
+      listo_delivery: 'Salió en camino 🛵',
+      listo_pickup:   '¡Ya lo podés pasar a retirar!',
+      entregado:      '¡Disfrutalo! 🍔',
+      cancelado:      'Este pedido fue cancelado.'
+    }
+
+    window.addEventListener('load', () => {
+      const params = new URLSearchParams(location.search)
+      const numero = params.get('numero')
+      if (numero) {
+        document.getElementById('numero').value = numero
+        buscar()
+      }
+      document.getElementById('numero').addEventListener('keydown', e => {
+        if (e.key === 'Enter') buscar()
+      })
+    })
+
+    async function buscar() {
+      const numero = document.getElementById('numero').value.trim()
+      const errorBox = document.getElementById('error-box')
+      const resultado = document.getElementById('resultado')
+      errorBox.style.display = 'none'
+
+      if (!numero) return
+
+      const res = await fetch(`/api/seguimiento/${numero}`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        resultado.style.display = 'none'
+        errorBox.textContent = data.error || 'No pudimos encontrar ese pedido'
+        errorBox.style.display = 'block'
+        pararRefresco()
+        return
+      }
+
+      numeroActual = numero
+      render(data)
+
+      if (!intervalo && !['entregado', 'cancelado'].includes(data.estado)) {
+        intervalo = setInterval(() => buscar(), 10000)
+      }
+      if (['entregado', 'cancelado'].includes(data.estado)) {
+        pararRefresco()
+      }
+    }
+
+    function pararRefresco() {
+      if (intervalo) { clearInterval(intervalo); intervalo = null }
+    }
+
+    function render(data) {
+      const resultado = document.getElementById('resultado')
+      resultado.style.display = 'block'
+
+      if (data.estado === 'cancelado') {
+        resultado.className = 'resultado cancelado'
+        resultado.innerHTML = `
+          <div class="resultado-header">
+            <span class="resultado-num">Pedido #${data.numero_pedido}</span>
+            <span class="resultado-canal">${data.canal}</span>
+          </div>
+          <div class="estado-mensaje cancelado">✕ ${MENSAJES.cancelado}</div>
+          ${renderItems(data)}
+        `
+        return
+      }
+
+      const pasos = data.canal === 'delivery' ? PASOS_DELIVERY : PASOS_PICKUP
+      const idxActual = pasos.findIndex(p => p.estado === data.estado)
+      const fillFraccion = idxActual <= 0 ? 0 : idxActual / (pasos.length - 1)
+
+      let mensajeKey = data.estado
+      if (data.estado === 'listo') mensajeKey = data.canal === 'delivery' ? 'listo_delivery' : 'listo_pickup'
+
+      resultado.className = 'resultado'
+      resultado.innerHTML = `
+        <div class="resultado-header">
+          <span class="resultado-num">Pedido #${data.numero_pedido}</span>
+          <span class="resultado-canal">${data.canal}</span>
+        </div>
+        <div class="estado-mensaje">${MENSAJES[mensajeKey] || ''}</div>
+
+        <div class="stepper">
+          <div class="stepper-fill" style="width:calc((100% - 60px) * ${fillFraccion})"></div>
+          ${pasos.map((p, i) => `
+            <div class="step ${i < idxActual ? 'hecho' : ''} ${i === idxActual ? 'activo' : ''}">
+              <div class="step-dot">${p.icono}</div>
+              <div class="step-label">${p.label}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        ${renderItems(data)}
+      `
+    }
+
+    function renderItems(data) {
+      return `
+        <div class="items-list">
+          ${data.items.map(i => `
+            <div class="item-row"><span>${i.cantidad}x ${i.nombre}</span></div>
+          `).join('')}
+          <div class="items-total">
+            <span>Total</span>
+            <span>$${(data.total || 0).toLocaleString('es-AR')}</span>
+          </div>
+        </div>
+      `
+    }
+  </script>
+</body>
+</html>

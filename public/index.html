@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Burger Point — Iniciar Sesión</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
   <link rel="stylesheet" href="/css/estilos.css">
   <style>
     body {
@@ -14,7 +15,6 @@
       justify-content: center;
       min-height: 100vh;
       padding: 24px;
-      background: var(--bg);
     }
     .login-wrap {
       width: 100%;
@@ -23,28 +23,47 @@
     .login-logo {
       text-align: center;
       margin-bottom: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .login-logo img {
+      width: 84px;
+      height: 84px;
+      filter: drop-shadow(0 0 28px rgba(232,131,42,0.35));
     }
     .login-logo h1 {
-      font-size: 40px;
-      color: var(--accent);
-      letter-spacing: 2px;
+      font-size: 30px;
+      color: var(--text);
+      letter-spacing: 0.5px;
     }
+    .login-logo h1 .point { color: var(--accent); }
     .login-logo p {
-      font-size: 12px;
+      font-size: 11px;
       font-family: var(--mono);
       letter-spacing: 3px;
       text-transform: uppercase;
       color: var(--text-muted);
-      margin-top: 4px;
     }
     .login-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 16px;
       padding: 32px;
       display: flex;
       flex-direction: column;
       gap: 20px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+    }
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
     }
     .login-card h2 {
       font-size: 18px;
@@ -60,13 +79,23 @@
       text-align: center;
       display: none;
     }
+    .seguimiento-link {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .seguimiento-link a { color: var(--accent); font-weight: 600; text-decoration: none; }
+    .seguimiento-link a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
   <div class="login-wrap">
     <div class="login-logo">
-      <h1>BURGER POINT</h1>
+      <img src="/img/logo.svg" alt="Burger Point">
+      <h1>BURGER <span class="point">POINT</span></h1>
       <p>Sistema de gestión</p>
     </div>
 
@@ -92,6 +121,8 @@
         Ingresar
       </button>
     </div>
+
+    <p class="seguimiento-link">¿Ya hiciste tu pedido? <a href="/seguimiento.html">Seguí su estado acá</a></p>
   </div>
 
   <div id="toast"></div>

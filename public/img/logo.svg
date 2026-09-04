@@ -1,0 +1,51 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f5c842"/>
+      <stop offset="100%" stop-color="#e8832a"/>
+    </linearGradient>
+    <linearGradient id="bunGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#eeb277"/>
+      <stop offset="100%" stop-color="#c97f3a"/>
+    </linearGradient>
+    <linearGradient id="bunBottomGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c97f3a"/>
+      <stop offset="100%" stop-color="#a3612a"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="100" cy="100" r="94" fill="#150f0a"/>
+  <circle cx="100" cy="100" r="91" fill="none" stroke="url(#ringGrad)" stroke-width="4"/>
+
+  <g transform="rotate(-7 100 100)">
+    <path d="M50 136 Q50 158 100 158 Q150 158 150 136 L150 128 L50 128 Z" fill="url(#bunBottomGrad)"/>
+    <rect x="44" y="112" width="112" height="21" rx="10.5" fill="#5a3620"/>
+    <path d="M40 106
+      Q46 122 54 108
+      Q62 124 70 108
+      Q78 124 86 108
+      Q94 124 100 108
+      Q106 124 114 108
+      Q122 124 130 108
+      Q138 124 146 108
+      Q154 122 160 106
+      L160 100 L40 100 Z" fill="#f5c842"/>
+    <rect x="42" y="94" width="116" height="9" rx="4.5" fill="#d9483d"/>
+    <path d="M36 92
+      Q48 78 60 92
+      Q72 78 84 92
+      Q96 78 108 92
+      Q120 78 132 92
+      Q144 78 156 92
+      L156 100 L36 100 Z" fill="#6fae4f"/>
+    <ellipse cx="100" cy="72" rx="60" ry="32" fill="url(#bunGrad)"/>
+    <g fill="#fbe7c6">
+      <ellipse cx="76" cy="60" rx="3.2" ry="5.5" transform="rotate(-25 76 60)"/>
+      <ellipse cx="95" cy="52" rx="3.2" ry="5.5" transform="rotate(5 95 52)"/>
+      <ellipse cx="115" cy="58" rx="3.2" ry="5.5" transform="rotate(-10 115 58)"/>
+      <ellipse cx="128" cy="70" rx="3.2" ry="5.5" transform="rotate(25 128 70)"/>
+      <ellipse cx="86" cy="76" rx="3.2" ry="5.5" transform="rotate(10 86 76)"/>
+      <ellipse cx="106" cy="80" rx="3.2" ry="5.5" transform="rotate(-5 106 80)"/>
+    </g>
+  </g>
+</svg>
