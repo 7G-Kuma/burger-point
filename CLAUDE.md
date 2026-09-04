@@ -4,16 +4,11 @@ Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreS
 
 **URL en producción**: https://burger-point-vtlu.onrender.com — se duerme tras 15 min sin tráfico, primer request siguiente tarda 30-60s en responder (comportamiento normal del plan free, no es un error).
 
-## Estado general: Fase 1 a 6 completas y desplegadas
+## Estado general (al 2026-09-04)
 
-| # | Parte | Estado |
-|---|-------|--------|
-| 1 | Configuración inicial (Node, GitHub, Supabase, tablas) | ✅ Completada |
-| 2 | Servidor base + Login (Express 4, JWT, roles) | ✅ Completada |
-| 3 | Panel del propietario (estadísticas, alertas) | ✅ Completada |
-| 4 | Módulo de Pedidos (caja, carrito, menú) | ✅ Completada |
-| 5 | Vista de Cocina + Reparto | ✅ Completada — probada en circuito integral |
-| 6 | Módulo de Cobros + Deploy | ✅ Completada — en producción en Render |
+Las 6 fases del plan original (configuración, login+roles, panel, pedidos/caja, cocina+reparto, cobros+deploy) están completas y en producción desde el 2026-09-03. Desde entonces se agregó bastante más de lo planeado originalmente — stock visible, rediseño visual + logo, seguimiento del cliente, registro/historial admin, factura numerada persistente, inventario con ingresos, menú digital de autoservicio con auto-notificación a caja, y contenido real (descripciones) del menú. Cada uno tiene su propia sección fechada más abajo, en orden cronológico — es la forma más confiable de saber qué existe y por qué.
+
+**Para retomar el trabajo**: leer la sección "Pendiente de la última ronda de pedidos" al final de este documento — ahí está lo que falta y en qué orden lo pidió el usuario.
 
 Probado en vivo el 2026-09-03: caja crea pedido → cobro por transferencia queda pendiente → cocina prepara y marca listo → reparto verifica la transferencia y marca entregado → panel refleja ventas/cobrado/alertas correctamente. Repetido con la `service_role` key activa y confirmado que el descuento de stock ahora funciona (`Queso azul` 2.00→1.00 y `Carne (medallón)` 80.00→79.00 al confirmar un Blue Cheese).
 
@@ -122,6 +117,10 @@ El usuario pidió seis cosas grandes de una — se está entregando de a una, en
 2. **Precios y promociones**: pantalla para que propietario/encargado editen precios de `productos` (ya existe `POST /api/productos`, falta el `PATCH` y la UI) y una gestión de promociones nueva de cero (no hay tabla `promociones` todavía).
 
 Cuando se retome cualquiera de estas, conviene re-preguntar prioridad si pasó tiempo — el usuario dijo que las va a querer todas, pero una por vez.
+
+**Además, sin depender de mí**: el usuario tiene pendiente generar las 16 fotos del menú con `docs/prompts-fotos-menu.md` (ver sección de arriba) y pasarlas para subirlas — no es algo que vaya a aparecer solo, hay que preguntar si ya las tiene la próxima vez que se toque `menu.html`.
+
+**Sesión pausada acá a pedido del usuario el 2026-09-04** ("vamos super encaminados", quiere seguir otro día) — no quedó nada roto ni a medio terminar, todo lo de esta sesión está commiteado, pusheado y verificado en producción.
 
 ## Notas técnicas conocidas
 
