@@ -9,18 +9,12 @@ const router = express.Router()
 router.post('/login', async (req, res) => {
   const { email, password } = req.body
 
-  console.log('=== LOGIN INTENTO ===')
-  console.log('Email recibido:', email)
-  console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'OK' : 'FALTA')
-  console.log('SUPABASE_KEY:', process.env.SUPABASE_KEY ? 'OK' : 'FALTA')
-
   if (!email || !password) {
     return res.status(400).json({ error: 'Email y contraseña requeridos' })
   }
 
   try {
     const supabase = getSupabase()
-    console.log('Buscando usuario...')
 
     const { data: usuarios, error } = await supabase
       .from('usuarios')
@@ -29,16 +23,12 @@ router.post('/login', async (req, res) => {
       .eq('activo', true)
       .limit(1)
 
-    console.log('Error Supabase:', error)
-    console.log('Usuarios encontrados:', usuarios)
-
     if (error || !usuarios || usuarios.length === 0) {
       return res.status(401).json({ error: 'Usuario no encontrado' })
     }
 
     const usuario = usuarios[0]
     const ok = await bcrypt.compare(password, usuario.password_hash)
-    console.log('Password match:', ok)
 
     if (!ok) {
       return res.status(401).json({ error: 'Contraseña incorrecta' })

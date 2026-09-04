@@ -113,7 +113,6 @@ router.post('/', auth, async (req, res) => {
 router.patch('/:id/estado', auth, async (req, res) => {
   const supabase = getSupabase()
   const { estado } = req.body
-  console.log('>>> PATCH estado recibido:', JSON.stringify(estado))
 
   const estadosValidos = [
     'recibido','confirmado','en_preparacion','listo','entregado','cancelado'
@@ -123,50 +122,36 @@ router.patch('/:id/estado', auth, async (req, res) => {
   }
 
   if (estado === 'confirmado') {
-    console.log('>>> Buscando items del pedido:', req.params.id)
-
     const { data: items, error: errorItems } = await supabase
       .from('pedido_items')
       .select('producto_id, cantidad')
       .eq('pedido_id', req.params.id)
 
-    console.log('>>> Items encontrados:', JSON.stringify(items))
-    if (errorItems) console.log('>>> ERROR items:', JSON.stringify(errorItems))
     if (errorItems) return res.status(500).json({ error: errorItems.message })
 
     for (const item of items) {
-      const { data: receta, error: errorReceta } = await supabase
+      const { data: receta } = await supabase
         .from('producto_insumos')
         .select('insumo_id, cantidad_usada')
         .eq('producto_id', item.producto_id)
 
-      console.log('>>> Receta para producto', item.producto_id, ':', JSON.stringify(receta))
-      if (errorReceta) console.log('>>> ERROR receta:', JSON.stringify(errorReceta))
-
       if (!receta) continue
 
       for (const ing of receta) {
-        const { data: insumo, error: errorInsumo } = await supabase
+        const { data: insumo } = await supabase
           .from('insumos')
           .select('cantidad_actual')
           .eq('id', ing.insumo_id)
           .single()
 
-        console.log('>>> Insumo actual:', JSON.stringify(insumo))
-        if (errorInsumo) console.log('>>> ERROR insumo:', JSON.stringify(errorInsumo))
-
         if (!insumo) continue
 
         const nuevaCantidad = insumo.cantidad_actual - (ing.cantidad_usada * item.cantidad)
-        console.log('>>> Nueva cantidad calculada:', nuevaCantidad)
 
-        const { error: errorUpdate } = await supabase
+        await supabase
           .from('insumos')
           .update({ cantidad_actual: nuevaCantidad })
           .eq('id', ing.insumo_id)
-
-        if (errorUpdate) console.log('>>> ERROR update:', JSON.stringify(errorUpdate))
-        else console.log('>>> Update OK para insumo', ing.insumo_id)
       }
     }
   }
