@@ -1,8 +1,10 @@
 # Burger Point — Sistema de Gestión
 
-Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreSQL, São Paulo, proyecto `wvarebdeatfdlmeojzvq`) · Railway (deploy en curso).
+Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreSQL, São Paulo, proyecto `wvarebdeatfdlmeojzvq`) · desplegado en Render (plan free, elegido para no generar costo antes de presentar el proyecto — Railway queda como opción paga para más adelante si se necesita 24/7 sin sleep).
 
-## Estado general: Fase 2 — Partes 1 a 6 completas, falta solo el deploy a Railway
+**URL en producción**: https://burger-point-vtlu.onrender.com — se duerme tras 15 min sin tráfico, primer request siguiente tarda 30-60s en responder (comportamiento normal del plan free, no es un error).
+
+## Estado general: Fase 1 a 6 completas y desplegadas
 
 | # | Parte | Estado |
 |---|-------|--------|
@@ -11,7 +13,7 @@ Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreS
 | 3 | Panel del propietario (estadísticas, alertas) | ✅ Completada |
 | 4 | Módulo de Pedidos (caja, carrito, menú) | ✅ Completada |
 | 5 | Vista de Cocina + Reparto | ✅ Completada — probada en circuito integral |
-| 6 | Módulo de Cobros + Deploy a Railway | 🔶 Cobros completo, seguridad cerrada — deploy pendiente (requiere cuenta del usuario) |
+| 6 | Módulo de Cobros + Deploy | ✅ Completada — en producción en Render |
 
 Probado en vivo el 2026-09-03: caja crea pedido → cobro por transferencia queda pendiente → cocina prepara y marca listo → reparto verifica la transferencia y marca entregado → panel refleja ventas/cobrado/alertas correctamente. Repetido con la `service_role` key activa y confirmado que el descuento de stock ahora funciona (`Queso azul` 2.00→1.00 y `Carne (medallón)` 80.00→79.00 al confirmar un Blue Cheese).
 
@@ -42,19 +44,21 @@ Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`,
 
 Usuarios de equipo ya creados: `admin@burgerpoint.com` (propietario), `caja@burgerpoint.com` (María), `cocina@burgerpoint.com` (Carola), `reparto@burgerpoint.com` (Juan).
 
-## Próximos pasos
+## Deploy (Render)
 
-**Deploy a Railway (en curso, requiere cuenta del usuario — ver guía que se le dio en el chat):**
-1. Crear cuenta en railway.app y conectar el repo de GitHub (`7G-Kuma/burger-point`)
-2. Variables de entorno en Railway: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `JWT_SECRET` (no hace falta `PORT`, Railway lo inyecta solo y `server.js` ya lo respeta)
-3. Deploy — queda en una URL pública
-4. Prueba final desde un celular fuera de la red local
+Servicio `burger-point-vtlu` conectado directo al repo de GitHub (`7G-Kuma/burger-point`, rama `main`) — cada push a `main` redeploya solo. Build command `npm install`, start command `node server.js`, plan Free.
+
+Variables de entorno cargadas en Render → pestaña Environment (independientes del `.env` local, no se sincronizan solas): `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `JWT_SECRET`. Si se rota alguna en el futuro hay que actualizarla en los dos lugares.
+
+Bug real encontrado y resuelto durante el primer deploy (2026-09-03): las variables no habían quedado cargadas en Render (`SUPABASE_URL: FALTA` en los logs) — el login tiraba 500 (`supabaseUrl is required`). Se resolvió cargándolas en la pestaña Environment del dashboard.
+
+**Próximo paso, si se necesita 24/7 sin el sleep de 15 min** (por ejemplo después de presentar el proyecto): migrar a Railway u otro plan pago — el código ya es compatible tal cual (mismas env vars, respeta `process.env.PORT`).
 
 ## Notas técnicas conocidas
 
 - Usar **CMD**, no PowerShell, para `npm`/`node` (bloqueo de scripts de PowerShell en este entorno).
 - Express fijado en v4 — Express 5 rompía el ciclo de vida del servidor.
-- `server.js` carga `.env` manualmente solo si el archivo existe — en Railway las variables ya vienen en `process.env` sin archivo `.env` (antes tiraba ENOENT y crasheaba el deploy; corregido 2026-09-03).
+- `server.js` carga `.env` manualmente solo si el archivo existe — en Render/Railway las variables ya vienen en `process.env` sin archivo `.env` (antes tiraba ENOENT y crasheaba el deploy; corregido 2026-09-03).
 - Puerto 3000 ocupado en local → `taskkill /F /IM node.exe`.
 - Probar login limpio en ventana de incógnito (localStorage puede tener sesión vieja).
 
