@@ -32,21 +32,25 @@ rutas/
   cobros.js          # POST /api/cobros, PATCH /api/cobros/:id/verificar
   seguimiento.js     # GET /api/seguimiento/:numero — PÚBLICO, sin auth, para que el cliente consulte su pedido
   registro.js        # GET /api/registro — historial completo con filtros, solo propietario/encargado
+  insumos.js         # GET /api/insumos (+ /movimientos), POST /:id/ingreso — inventario, solo propietario/encargado
 public/
   img/logo.svg       # logo propio (badge circular con hamburguesa), usado como favicon en las 6 páginas
   index.html         # login — link a seguimiento.html para el cliente
   panel.html         # propietario/encargado
-  caja.html          # caja/encargado — crea pedidos, muestra stock por producto (bloquea si no alcanza), cobra y genera boleta
+  caja.html          # caja/encargado — crea pedidos, muestra stock por producto (bloquea si no alcanza), cobra y genera factura
   cocina.html        # cocina — temporizador, cambio de estado, registro de errores
   reparto.html       # reparto — entregas del turno, verificar transferencia pendiente
   seguimiento.html   # pública, sin login — el cliente ve el estado de su pedido por número
-  registro.html      # propietario/encargado — historial completo, filtros, detalle y boleta de cada pedido
+  registro.html      # propietario/encargado — historial completo, filtros, detalle y factura de cada pedido
+  inventario.html    # propietario/encargado — stock por insumo, registrar ingresos, historial de movimientos
 .claude/launch.json  # config para levantar el servidor desde el preview del editor
 ```
 
 ## Base de datos (Supabase, proyecto wvarebdeatfdlmeojzvq)
 
-Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`. **RLS activado en las 8** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
+Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`, `facturas`, `movimientos_stock`. **RLS activado en las 10** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
+
+`facturas`: `numero_factura` autoincremental (serial), vinculada a `pedido_id` + `cobro_id`, con `metodo_pago`/`estado_pago` copiados del cobro. Se crea automáticamente en `POST /api/cobros`. `movimientos_stock`: `tipo` ('ingreso'/'ajuste'), `cantidad`, `nota`, `usuario_id` — se crea en `POST /api/insumos/:id/ingreso`.
 
 Usuarios de equipo ya creados: `admin@burgerpoint.com` (propietario), `caja@burgerpoint.com` (María), `cocina@burgerpoint.com` (Carola), `reparto@burgerpoint.com` (Juan).
 
@@ -80,12 +84,27 @@ Respaldado por `rutas/seguimiento.js` — `GET /api/seguimiento/:numero`, sin mi
 
 Falta (no pedido todavía, posible mejora futura): compartirle el link/número al cliente automáticamente al crear el pedido en caja — hoy caja tendría que decírselo de palabra o por WhatsApp a mano.
 
-## Registro de pedidos, boleta en PDF y navegación entre perfiles (2026-09-03)
+## Registro de pedidos, navegación entre perfiles (2026-09-03)
 
-- **Registro completo** (`registro.html` + `rutas/registro.js`, solo propietario/encargado): historial de todos los pedidos (no solo los de hoy), con filtros por fecha/estado/canal, tiles de resumen (pedidos, facturado, cancelados, con incidencias) y un detalle por pedido (items, precios, quién atendió, cobro, observaciones, incidencias, timestamps de creado/actualizado).
-- **Boleta en PDF** (`GET /api/pedidos/:id/boleta`, con `pdfkit`): comprobante de una página con logo, datos del pedido, tabla de items con subtotales, total, método/estado de pago, observaciones e incidencias si las hay. Accesible desde el modal de `caja.html` (botón "🧾 Ver boleta", en cualquier estado del pedido) y desde el detalle en `registro.html`. Se abre en pestaña nueva vía `verBoleta()` en `app.js` — importante: esa función abre la pestaña **antes** del `fetch`, porque abrirla después de un `await` hace que el navegador la bloquee como popup.
-- **Navegación entre perfiles**: `renderNavSwitcher()` en `app.js` agrega al navbar los links a Panel/Caja/Cocina/Reparto/Registro cuando el usuario logueado es `propietario` o `encargado` (esos roles ya podían entrar a cualquier vista por el `requireAuth` de cada página — lo que faltaba era la forma de llegar sin escribir la URL a mano).
-- Al debuggear la boleta aparecieron PDFs truncados (solo el header) en las primeras pruebas — se descartó como bug real: fue una carrera al cargar las fuentes de PDFKit por disparar dos pedidos de la misma boleta casi en simultáneo durante las pruebas. Con una sola descarga por vez (el caso real de uso) genera el PDF completo siempre; se verificó con cuatro métodos distintos (archivo, http plano, Express+curl, fetch del navegador).
+- **Registro completo** (`registro.html` + `rutas/registro.js`, solo propietario/encargado): historial de todos los pedidos (no solo los de hoy), con filtros por fecha/estado/canal, tiles de resumen (pedidos, facturado, cancelados, con incidencias) y un detalle por pedido (items, precios, quién atendió, cobro, número de factura, observaciones, incidencias, timestamps de creado/actualizado).
+- **Navegación entre perfiles**: `renderNavSwitcher()` en `app.js` agrega al navbar los links a Panel/Caja/Cocina/Reparto/Inventario/Registro cuando el usuario logueado es `propietario` o `encargado` (esos roles ya podían entrar a cualquier vista por el `requireAuth` de cada página — lo que faltaba era la forma de llegar sin escribir la URL a mano).
+- Al debuggear la generación de PDF aparecieron documentos truncados (solo el header) en las primeras pruebas — se descartó como bug real: fue una carrera al cargar las fuentes de PDFKit por disparar dos pedidos del mismo documento casi en simultáneo durante las pruebas. Con una sola descarga por vez (el caso real de uso) genera el PDF completo siempre; se verificó con cuatro métodos distintos (archivo, http plano, Express+curl, fetch del navegador).
+
+## Factura numerada persistente e inventario (2026-09-03)
+
+- **Factura, no boleta**: `GET /api/pedidos/:id/factura` (con `pdfkit`) ya no es un PDF generado al vuelo desde el pedido — cada cobro (`POST /api/cobros`) emite una fila en `facturas` con número correlativo propio (`numero_factura`, ej. `#000018`), que es lo que el PDF muestra como "Factura N°". Si se verifica una transferencia (`PATCH /api/cobros/:id/verificar`) el `estado_pago` de la factura se actualiza junto con el cobro. Accesible desde el modal de `caja.html` ("🧾 Ver factura") y desde el detalle en `registro.html`. Se abre en pestaña nueva vía `verFactura()` en `app.js` — esa función abre la pestaña **antes** del `fetch`, porque abrirla después de un `await` hace que el navegador la bloquee como popup.
+- Se hizo un backfill de facturas para los 17 cobros que ya existían antes de esta función (`#000001` a `#000017`); los pedidos #1 y #2 nunca tuvieron cobro y por eso no tienen factura (se ve "—" en el registro, es correcto).
+- **Inventario** (`inventario.html` + `rutas/insumos.js`, solo propietario/encargado): tabla de todos los insumos ordenada por criticidad (agotado → bajo → normal), con botón "➕ Ingreso" por insumo que abre un modal (cantidad + nota opcional) y llama a `POST /api/insumos/:id/ingreso` — suma al `cantidad_actual` y deja un registro en `movimientos_stock`. Pestaña "Historial de ingresos" lista esos movimientos con quién lo cargó. Panel del propietario tiene un botón directo ("📦 Ver inventario") junto a las alertas de stock.
+
+## Pendiente de la última ronda de pedidos (no implementado todavía)
+
+El usuario pidió seis cosas grandes de una — se está entregando de a una, en el orden que él priorizó. Ya hechas: inventario + factura (arriba). **Todavía faltan**, en este orden aproximado de lo conversado:
+
+1. **Menú digital para clientes + auto-notificación a caja**: página pública donde el cliente arma su propio pedido online (sin pasar por un empleado); al confirmarlo, caja tiene que enterarse automáticamente (para mandarlo a cocina) sin que nadie lo cargue a mano. Requiere pensar el mecanismo de "notificación" en tiempo real (polling corto en caja.html sería lo más simple de implementar con esta arquitectura, sin WebSockets).
+2. **Rol de encargado real + panel de permisos**: hoy `encargado` existe solo de nombre — en todos lados donde se chequea rol, `encargado` tiene exactamente los mismos permisos que `propietario`. Falta: una tabla/estructura de permisos granular, un panel donde el dueño defina qué puede ver/tocar cada perfil, y que las acciones del encargado le generen una notificación al propietario (falta definir qué significa "notificación" acá — ¿un feed de actividad en el panel? ¿algo más inmediato?).
+3. **Precios y promociones**: pantalla para que propietario/encargado editen precios de `productos` (ya existe `POST /api/productos`, falta el `PATCH` y la UI) y una gestión de promociones nueva de cero (no hay tabla `promociones` todavía).
+
+Cuando se retome cualquiera de estas, conviene re-preguntar prioridad si pasó tiempo — el usuario dijo que las va a querer todas, pero una por vez.
 
 ## Notas técnicas conocidas
 
