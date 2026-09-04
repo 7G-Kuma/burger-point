@@ -147,6 +147,7 @@
 
   <nav class="navbar">
     <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span> · Cocina</span>
+    <div id="nav-switcher"></div>
     <div class="navbar-right">
       <span class="navbar-role" id="nombre-usuario"></span>
       <span id="reloj" style="font-family:var(--mono);font-size:13px;color:var(--text-muted);"></span>
@@ -180,6 +181,7 @@
 
     window.addEventListener('load', () => {
       if (!requireAuth(['cocina', 'encargado', 'propietario'])) return
+      renderNavSwitcher()
       const usuario = getUsuario()
       document.getElementById('nombre-usuario').textContent = usuario.nombre
 

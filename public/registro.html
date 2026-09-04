@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Registro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .filtros {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 24px;
+    }
+    .filtros .input-group { min-width: 140px; }
+    .filtros .input-group input,
+    .filtros .input-group select { padding: 9px 12px; font-size: 13px; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-card);
+    }
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .stat-value { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
+
+    .fila-pedido { cursor: pointer; }
+    .fila-pedido:hover td { background: var(--surface2); }
+    .cobro-chip {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+    }
+    .cobro-cobrado, .cobro-verificado { background: rgba(76,175,125,0.15); color: #4caf7d; }
+    .cobro-pendiente { background: rgba(245,200,66,0.15); color: #f5c842; }
+    .inc-chip {
+      font-size: 11px;
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    /* Modal detalle */
+    .modal-bg {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-detalle {
+      width: 100%;
+      max-width: 520px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+    .detalle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+    .detalle-grid .label { color: var(--text-muted); font-size: 11px; font-family: var(--mono); text-transform: uppercase; }
+    .detalle-items { border-top: 1px solid var(--border); padding-top: 14px; margin-bottom: 14px; }
+    .detalle-item-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
+    .detalle-item-row .obs { color: var(--accent2); font-size: 11px; }
+    .detalle-total { display: flex; justify-content: space-between; font-weight: 700; font-family: var(--mono); border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; }
+    .detalle-incidencias { background: rgba(217,79,61,0.08); border: 1px solid rgba(217,79,61,0.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; margin-top: 14px; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span> · Registro</span>
+    <div id="nav-switcher"></div>
+    <div class="navbar-right">
+      <span class="navbar-role" id="nombre-usuario"></span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div>
+        <h1>Registro de pedidos</h1>
+        <p style="margin-top:4px;">Historial completo con el detalle de cada pedido</p>
+      </div>
+    </div>
+
+    <div class="filtros">
+      <div class="input-group">
+        <label>Desde</label>
+        <input type="date" id="f-desde">
+      </div>
+      <div class="input-group">
+        <label>Hasta</label>
+        <input type="date" id="f-hasta">
+      </div>
+      <div class="input-group">
+        <label>Estado</label>
+        <select id="f-estado">
+          <option value="">Todos</option>
+          <option value="recibido">Recibido</option>
+          <option value="confirmado">Confirmado</option>
+          <option value="en_preparacion">En preparación</option>
+          <option value="listo">Listo</option>
+          <option value="entregado">Entregado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Canal</label>
+        <select id="f-canal">
+          <option value="">Todos</option>
+          <option value="presencial">Presencial</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="delivery">Delivery</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="cargarRegistro()">Buscar</button>
+      <button class="btn btn-secondary" onclick="limpiarFiltros()">Limpiar</button>
+    </div>
+
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <div class="card">
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Fecha</th>
+              <th>Canal</th>
+              <th>Estado</th>
+              <th>Atendió</th>
+              <th>Pago</th>
+              <th></th>
+              <th>Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tabla-registro">
+            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="modal-bg">
+    <div class="card modal-detalle" id="modal-detalle"></div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    let pedidosActuales = []
+
+    window.addEventListener('load', () => {
+      if (!requireAuth(['propietario', 'encargado'])) return
+      renderNavSwitcher()
+      const usuario = getUsuario()
+      document.getElementById('nombre-usuario').textContent = usuario.nombre
+      cargarRegistro()
+    })
+
+    function limpiarFiltros() {
+      document.getElementById('f-desde').value = ''
+      document.getElementById('f-hasta').value = ''
+      document.getElementById('f-estado').value = ''
+      document.getElementById('f-canal').value = ''
+      cargarRegistro()
+    }
+
+    async function cargarRegistro() {
+      const params = new URLSearchParams()
+      const desde = document.getElementById('f-desde').value
+      const hasta = document.getElementById('f-hasta').value
+      const estado = document.getElementById('f-estado').value
+      const canal = document.getElementById('f-canal').value
+      if (desde) params.set('desde', desde)
+      if (hasta) params.set('hasta', hasta)
+      if (estado) params.set('estado', estado)
+      if (canal) params.set('canal', canal)
+
+      const data = await api('/api/registro?' + params.toString())
+      if (!data) return
+      if (data.error) { toast(data.error, 'danger'); return }
+
+      pedidosActuales = data.pedidos || []
+      renderStats()
+      renderTabla()
+    }
+
+    function renderStats() {
+      const total = pedidosActuales.length
+      const cancelados = pedidosActuales.filter(p => p.estado === 'cancelado').length
+      const facturado = pedidosActuales
+        .filter(p => p.estado !== 'cancelado')
+        .reduce((s, p) => s + p.total, 0)
+      const conIncidencias = pedidosActuales.filter(p => p.incidencias?.length > 0).length
+
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card"><div class="stat-label">Pedidos</div><div class="stat-value">${total}</div></div>
+        <div class="stat-card"><div class="stat-label">Facturado</div><div class="stat-value text-ok">$${facturado.toLocaleString('es-AR')}</div></div>
+        <div class="stat-card"><div class="stat-label">Cancelados</div><div class="stat-value text-danger">${cancelados}</div></div>
+        <div class="stat-card"><div class="stat-label">Con incidencias</div><div class="stat-value" style="color:var(--accent2);">${conIncidencias}</div></div>
+      `
+    }
+
+    function renderTabla() {
+      const tbody = document.getElementById('tabla-registro')
+      if (pedidosActuales.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:32px;">Sin pedidos en este rango</td></tr>`
+        return
+      }
+      tbody.innerHTML = pedidosActuales.map(p => {
+        const cobro = p.cobros?.[0]
+        return `
+        <tr class="fila-pedido" onclick="abrirDetalle('${p.id}')">
+          <td class="mono" style="color:var(--accent);">#${p.numero_pedido}</td>
+          <td style="color:var(--text-muted);font-size:12px;">${formatFecha(p.creado_en)}</td>
+          <td style="text-transform:capitalize;">${p.canal}</td>
+          <td>${badgeEstado(p.estado)}</td>
+          <td>${p.atendido_por || '—'}</td>
+          <td style="text-transform:capitalize;">${cobro?.metodo || '—'}</td>
+          <td>${cobro ? `<span class="cobro-chip cobro-${cobro.estado}">${cobro.estado}</span>` : ''}</td>
+          <td class="mono">$${p.total.toLocaleString('es-AR')}</td>
+          <td>${p.incidencias?.length ? `<span class="inc-chip">⚠ ${p.incidencias.length}</span>` : ''}</td>
+        </tr>`
+      }).join('')
+    }
+
+    function abrirDetalle(id) {
+      const p = pedidosActuales.find(x => x.id === id)
+      if (!p) return
+      const cobro = p.cobros?.[0]
+
+      document.getElementById('modal-detalle').innerHTML = `
+        <div class="card-header">
+          <h3>Pedido #${p.numero_pedido}</h3>
+          <button onclick="cerrarDetalle()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+        </div>
+
+        <div class="detalle-grid">
+          <div><div class="label">Canal</div>${p.canal}</div>
+          <div><div class="label">Estado</div>${badgeEstado(p.estado)}</div>
+          <div><div class="label">Atendió</div>${p.atendido_por || '—'}</div>
+          <div><div class="label">Pago</div>${cobro ? `${cobro.metodo} · ${cobro.estado}` : 'Sin cobro registrado'}</div>
+          <div><div class="label">Creado</div>${new Date(p.creado_en).toLocaleString('es-AR')}</div>
+          <div><div class="label">Actualizado</div>${new Date(p.actualizado_en).toLocaleString('es-AR')}</div>
+        </div>
+
+        <div class="detalle-items">
+          ${p.pedido_items?.map(i => `
+            <div class="detalle-item-row">
+              <span>${i.cantidad}x ${i.productos?.nombre}${i.observacion ? `<div class="obs">⚠ ${i.observacion}</div>` : ''}</span>
+              <span class="mono">$${(i.cantidad * i.precio_unitario).toLocaleString('es-AR')}</span>
+            </div>
+          `).join('') || '<p>Sin items</p>'}
+          <div class="detalle-total"><span>Total</span><span>$${p.total.toLocaleString('es-AR')}</span></div>
+        </div>
+
+        ${p.observaciones ? `<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">📝 ${p.observaciones}</p>` : ''}
+
+        ${p.incidencias?.length ? `
+          <div class="detalle-incidencias">
+            <strong style="color:var(--danger);">Incidencias registradas</strong><br>
+            ${p.incidencias.map(inc => `• ${inc.tipo}: ${inc.descripcion || ''} — ${formatFecha(inc.creado_en)}`).join('<br>')}
+          </div>
+        ` : ''}
+
+        <button class="btn btn-primary btn-full mt-16" onclick="verBoleta('${p.id}')">🧾 Descargar boleta</button>
+      `
+      document.getElementById('modal-bg').style.display = 'flex'
+    }
+
+    function cerrarDetalle() {
+      document.getElementById('modal-bg').style.display = 'none'
+    }
+  </script>
+</body>
+</html>

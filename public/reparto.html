@@ -82,6 +82,7 @@
 
   <nav class="navbar">
     <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span> · Reparto</span>
+    <div id="nav-switcher"></div>
     <div class="navbar-right">
       <span class="navbar-role" id="nombre-usuario"></span>
       <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
@@ -105,6 +106,7 @@
   <script>
     window.addEventListener('load', () => {
       if (!requireAuth(['reparto', 'encargado', 'propietario'])) return
+      renderNavSwitcher()
       const usuario = getUsuario()
       document.getElementById('nombre-usuario').textContent = usuario.nombre
       cargarPedidos()

@@ -197,6 +197,7 @@
 
   <nav class="navbar">
     <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span></span>
+    <div id="nav-switcher"></div>
     <div class="navbar-right">
       <span class="navbar-role">Caja</span>
       <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
@@ -288,6 +289,7 @@
 
     window.addEventListener('load', () => {
       if (!requireAuth(['caja', 'encargado', 'propietario'])) return
+      renderNavSwitcher()
       cargarProductos()
       cargarPedidos()
       setInterval(cargarProductos, 15000) // refleja el stock que va gastando cocina
@@ -448,6 +450,9 @@
   // El pedido "recibido" se confirma junto con el cobro, no aparte
   if (pedido.estado === 'recibido') {
         acciones.innerHTML = `
+      <button class="btn btn-secondary btn-full" onclick="verBoleta('${pedido.id}')">
+        🧾 Ver boleta
+      </button>
       <button class="btn btn-primary btn-full" onclick="confirmarYCobrar('${pedido.id}', ${pedido.total}, 'efectivo')">
         💵 Confirmar — Cobrado en efectivo
       </button>
@@ -473,9 +478,13 @@
     cancelado:     []
   }
   const btns = siguientes[pedido.estado] || []
-  btns.push({ estado:'cancelado', label:'✕ Cancelar pedido', clase:'btn-danger' })
+  if (pedido.estado !== 'cancelado') btns.push({ estado:'cancelado', label:'✕ Cancelar pedido', clase:'btn-danger' })
 
-  acciones.innerHTML = btns.map(b => `
+  acciones.innerHTML = `
+    <button class="btn btn-secondary btn-full" onclick="verBoleta('${pedido.id}')">
+      🧾 Ver boleta
+    </button>
+  ` + btns.map(b => `
     <button class="btn ${b.clase} btn-full" onclick="cambiarEstado('${pedido.id}','${b.estado}')">
       ${b.label}
     </button>

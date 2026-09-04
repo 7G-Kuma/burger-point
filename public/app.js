@@ -78,3 +78,42 @@ function requireAuth(rolesPermitidos = []) {
   }
   return true
 }
+
+// Abre la boleta en PDF de un pedido en una pestaña nueva.
+// La pestaña se abre ANTES del await: si se abre después, el navegador
+// la bloquea como popup porque ya se perdió el gesto del usuario.
+async function verBoleta(pedidoId) {
+  const ventana = window.open('', '_blank')
+  const token = getToken()
+  const res = await fetch(`/api/pedidos/${pedidoId}/boleta`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  })
+  if (!res.ok) {
+    toast('No se pudo generar la boleta', 'danger')
+    ventana?.close()
+    return
+  }
+  const blob = await res.blob()
+  if (ventana) ventana.location.href = URL.createObjectURL(blob)
+}
+
+// Pinta el selector de vistas para propietario/encargado (acceso a todos los perfiles)
+function renderNavSwitcher() {
+  const cont = document.getElementById('nav-switcher')
+  const usuario = getUsuario()
+  if (!cont || !usuario) return
+  if (!['propietario', 'encargado'].includes(usuario.rol)) return
+
+  const vistas = [
+    { href: '/panel.html',    icono: '📊', label: 'Panel' },
+    { href: '/caja.html',     icono: '🛒', label: 'Caja' },
+    { href: '/cocina.html',   icono: '🔥', label: 'Cocina' },
+    { href: '/reparto.html',  icono: '🛵', label: 'Reparto' },
+    { href: '/registro.html', icono: '🧾', label: 'Registro' }
+  ]
+  const actual = location.pathname
+
+  cont.innerHTML = vistas.map(v => `
+    <a href="${v.href}" class="nav-switch-link ${actual === v.href ? 'active' : ''}">${v.icono} ${v.label}</a>
+  `).join('')
+}

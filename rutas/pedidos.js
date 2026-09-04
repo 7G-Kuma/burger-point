@@ -1,5 +1,6 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
+const PDFDocument = require('pdfkit')
 const { getSupabase } = require('./db')
 const { obtenerDisponibilidad } = require('./stock')
 
@@ -69,6 +70,107 @@ router.get('/:id', auth, async (req, res) => {
 
   if (error) return res.status(404).json({ error: 'Pedido no encontrado' })
   res.json({ pedido })
+})
+
+// GET /api/pedidos/:id/boleta — genera el comprobante del pedido en PDF
+router.get('/:id/boleta', auth, async (req, res) => {
+  const supabase = getSupabase()
+
+  const { data: pedido, error } = await supabase
+    .from('pedidos')
+    .select(`
+      numero_pedido, canal, estado, observaciones, creado_en,
+      usuarios ( nombre ),
+      pedido_items ( cantidad, precio_unitario, observacion, productos ( nombre ) ),
+      cobros ( monto, estado, metodo ),
+      incidencias ( tipo, descripcion, creado_en )
+    `)
+    .eq('id', req.params.id)
+    .single()
+
+  if (error || !pedido) return res.status(404).json({ error: 'Pedido no encontrado' })
+
+  const total = pedido.pedido_items?.reduce((s, i) => s + i.cantidad * Number(i.precio_unitario), 0) || 0
+  const cobro = pedido.cobros?.[0]
+
+  const doc = new PDFDocument({ size: 'A4', margin: 50 })
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Content-Disposition', `inline; filename="boleta-${pedido.numero_pedido}.pdf"`)
+  doc.pipe(res)
+
+  doc.circle(70, 65, 22).fill('#e8832a')
+  doc.fillColor('#1a1108').font('Helvetica-Bold').fontSize(15).text('BP', 58, 56)
+
+  doc.fillColor('#1a1108').font('Helvetica-Bold').fontSize(22).text('BURGER POINT', 105, 45)
+  doc.fillColor('#8a7d6e').font('Helvetica').fontSize(10).text('Comprobante de pedido', 105, 70)
+
+  doc.fillColor('#1a1108').font('Helvetica-Bold').fontSize(14).text(`Pedido #${pedido.numero_pedido}`, 350, 45, { width: 195, align: 'right' })
+  doc.fillColor('#8a7d6e').font('Helvetica').fontSize(9)
+    .text(new Date(pedido.creado_en).toLocaleString('es-AR'), 350, 65, { width: 195, align: 'right' })
+
+  doc.moveTo(50, 105).lineTo(545, 105).strokeColor('#ddd').stroke()
+
+  let y = 122
+  doc.font('Helvetica').fontSize(10).fillColor('#555')
+  doc.text(`Canal: ${pedido.canal}`, 50, y)
+  doc.text(`Estado: ${pedido.estado}`, 300, y)
+  y += 16
+  doc.text(`Atendido por: ${pedido.usuarios?.nombre || '—'}`, 50, y)
+  if (cobro) doc.text(`Pago: ${cobro.metodo} (${cobro.estado})`, 300, y)
+  y += 32
+
+  doc.font('Helvetica-Bold').fontSize(10).fillColor('#1a1108')
+  doc.text('Cant', 50, y)
+  doc.text('Producto', 90, y)
+  doc.text('P. Unit', 350, y, { width: 80, align: 'right' })
+  doc.text('Subtotal', 450, y, { width: 95, align: 'right' })
+  y += 15
+  doc.moveTo(50, y).lineTo(545, y).strokeColor('#ddd').stroke()
+  y += 10
+
+  doc.font('Helvetica').fontSize(10).fillColor('#333')
+  pedido.pedido_items?.forEach(item => {
+    const subtotal = item.cantidad * Number(item.precio_unitario)
+    doc.text(String(item.cantidad), 50, y)
+    doc.text(item.productos?.nombre || 'Producto', 90, y, { width: 250 })
+    doc.text(`$${Number(item.precio_unitario).toLocaleString('es-AR')}`, 350, y, { width: 80, align: 'right' })
+    doc.text(`$${subtotal.toLocaleString('es-AR')}`, 450, y, { width: 95, align: 'right' })
+    y += 18
+    if (item.observacion) {
+      doc.fillColor('#e8832a').fontSize(9).text(`⚠ ${item.observacion}`, 90, y, { width: 250 })
+      doc.fillColor('#333').fontSize(10)
+      y += 16
+    }
+  })
+
+  doc.moveTo(50, y).lineTo(545, y).strokeColor('#ddd').stroke()
+  y += 12
+  doc.font('Helvetica-Bold').fontSize(13).fillColor('#1a1108')
+  doc.text('TOTAL', 350, y, { width: 80, align: 'right' })
+  doc.text(`$${total.toLocaleString('es-AR')}`, 450, y, { width: 95, align: 'right' })
+  y += 34
+
+  if (pedido.observaciones) {
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#1a1108').text('Observaciones:', 50, y)
+    y += 14
+    doc.font('Helvetica').fontSize(10).fillColor('#555').text(pedido.observaciones, 50, y, { width: 495 })
+    y += 28
+  }
+
+  if (pedido.incidencias?.length) {
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#d94f3d').text('Incidencias registradas:', 50, y)
+    y += 14
+    doc.font('Helvetica').fontSize(9).fillColor('#555')
+    pedido.incidencias.forEach(inc => {
+      doc.text(`• ${inc.tipo}: ${inc.descripcion || ''} (${new Date(inc.creado_en).toLocaleString('es-AR')})`, 55, y, { width: 490 })
+      y += 14
+    })
+  }
+
+  doc.font('Helvetica').fontSize(9).fillColor('#8a7d6e')
+    .text('Gracias por elegir Burger Point', 50, 780, { width: 495, align: 'center' })
+
+  doc.end()
 })
 
 // POST /api/pedidos — crear nuevo pedido
