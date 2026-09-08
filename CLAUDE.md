@@ -113,7 +113,9 @@ Nota de seguridad actualizada: desde que existe `menu.html`, `pedidos` **sí** g
 
 Las 16 fotos generadas por el usuario con los prompts de arriba ya están en `public/img/productos/<slug>.jpg` y se ven en `menu.html` (confirmado en local, las 16 cargan sin fallback).
 
-⚠️ **Pendiente de decisión del usuario**: 8 de las 16 fotos (las 7 papas menos `papas-ranch-y-crispy-onion` + las 2 bebidas) traen un texto de marca quemado en la imagen — "SPICY BURGER CO." en vez de "Burger Point" — porque el prompt pedía "sin texto" pero el generador lo ignoró e inventó un nombre. Las 7 hamburguesas salieron limpias, sin texto. Si se quiere corregir, hay que regenerar esas 8 agregando algo como *"si aparece texto de marca en la imagen, que diga exactamente 'Burger Point', nunca otro nombre"* al prompt, y volver a pasar el archivo con el mismo nombre para reemplazarlo. No se le preguntó al usuario si esto le molesta o no — se avisó y se seguirá con el resto hasta que él decida.
+✅ **Resuelto (2026-09-07)**: las 8 fotos con "SPICY BURGER CO." se regeneraron con el prompt corregido (pidiendo explícitamente que cualquier texto de marca diga "Burger Point") y ya están reemplazadas en `public/img/productos/`. Las papas ahora dicen "Burger Point" correctamente; las bebidas (agua, gaseosa) no tienen texto de marca, lo cual también es válido. Las 16 fotos del menú quedaron consistentes.
+
+Nota de proceso para el futuro: el usuario mandó las fotos corregidas pegándolas directo en el chat (no como archivo), lo cual no deja un archivo accesible en disco — hay que pedirle que las mande con `@"ruta\al\archivo"` (zip o carpeta) como la primera vez. También llegaron en un `.rar` (no `.zip`) con nombres genéricos de Gemini (`Gemini_Generated_Image_*.jpg`) — no hay `unrar`/`7z` instalados, pero sí `WinRAR` en `C:\Program Files\WinRAR\UnRAR.exe`, que sirve para extraerlo por línea de comandos. Hubo que abrir cada imagen para identificar a qué producto correspondía antes de renombrarla.
 
 ## Pendiente de la última ronda de pedidos (no implementado todavía)
 
