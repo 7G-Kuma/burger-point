@@ -6,9 +6,9 @@ Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreS
 
 ## Estado general (al 2026-09-07)
 
-Las 6 fases del plan original (configuración, login+roles, panel, pedidos/caja, cocina+reparto, cobros+deploy) están completas y en producción desde el 2026-09-03. Desde entonces se agregó bastante más de lo planeado originalmente — stock visible, rediseño visual + logo, seguimiento del cliente, registro/historial admin, factura numerada persistente, inventario con ingresos, menú digital de autoservicio con auto-notificación a caja, contenido real (descripciones + fotos) del menú, y un rol de encargado real con permisos por sección y notificación de actividad al propietario. Cada uno tiene su propia sección fechada más abajo, en orden cronológico — es la forma más confiable de saber qué existe y por qué.
+Las 6 fases del plan original (configuración, login+roles, panel, pedidos/caja, cocina+reparto, cobros+deploy) están completas y en producción desde el 2026-09-03. Desde entonces se agregó bastante más de lo planeado originalmente — stock visible, rediseño visual + logo, seguimiento del cliente, registro/historial admin, factura numerada persistente, inventario con ingresos, menú digital de autoservicio con auto-notificación a caja, contenido real (descripciones + fotos) del menú, un rol de encargado real con permisos por sección y notificación de actividad al propietario, y precios editables + promociones con descuento automático. Cada uno tiene su propia sección fechada más abajo, en orden cronológico — es la forma más confiable de saber qué existe y por qué.
 
-**Para retomar el trabajo**: leer la sección "Pendiente de la última ronda de pedidos" al final de este documento — ahí está lo que falta y en qué orden lo pidió el usuario.
+**Para retomar el trabajo**: no queda ningún pendiente conocido de la ronda de pedidos anterior (ver la última sección fechada, "Precios editables y promociones") — para el próximo trabajo hay que preguntarle al usuario qué necesita.
 
 Probado en vivo el 2026-09-03: caja crea pedido → cobro por transferencia queda pendiente → cocina prepara y marca listo → reparto verifica la transferencia y marca entregado → panel refleja ventas/cobrado/alertas correctamente. Repetido con la `service_role` key activa y confirmado que el descuento de stock ahora funciona (`Queso azul` 2.00→1.00 y `Carne (medallón)` 80.00→79.00 al confirmar un Blue Cheese).
 
@@ -22,7 +22,8 @@ rutas/
   auth.js            # POST /api/auth/login
   panel.js           # GET /api/panel/estadisticas + /alertas
   pedidos.js         # GET/POST/PATCH /api/pedidos (valida stock al crear, descuenta insumos al confirmar)
-  productos.js       # GET/POST /api/productos (incluye `disponible` por producto)
+  productos.js       # GET/POST/PATCH /api/productos (incluye `disponible` y precio con promo aplicada)
+  promociones.js     # GET/POST/PATCH/DELETE /api/promociones + exporta aplicarPromociones(), usada por productos.js y menu.js
   incidencias.js     # POST /api/incidencias (BR-04)
   cobros.js          # POST /api/cobros, PATCH /api/cobros/:id/verificar
   seguimiento.js     # GET /api/seguimiento/:numero — PÚBLICO, sin auth, para que el cliente consulte su pedido
@@ -44,14 +45,17 @@ public/
   registro.html      # propietario/encargado — historial completo, filtros, detalle y factura de cada pedido
   inventario.html    # propietario/encargado — stock por insumo, registrar ingresos, historial de movimientos
   permisos.html      # solo propietario — habilita/bloquea qué secciones puede ver el encargado
+  productos.html     # propietario/encargado — editar precios/visibilidad del menú y crear promociones
 .claude/launch.json  # config para levantar el servidor desde el preview del editor
 ```
 
 ## Base de datos (Supabase, proyecto wvarebdeatfdlmeojzvq)
 
-Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`, `facturas`, `movimientos_stock`, `permisos_encargado`, `actividad`. **RLS activado en las 12** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
+Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`, `facturas`, `movimientos_stock`, `permisos_encargado`, `actividad`, `promociones`, `promocion_productos`. **RLS activado en las 14** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
 
-`permisos_encargado`: una fila por sección (`panel`, `caja`, `cocina`, `reparto`, `inventario`, `registro`) con `permitido boolean`. `actividad`: `usuario_id`, `rol`, `accion` (texto libre, ej. `Creó el pedido #24`), `creado_en` — solo se escribe cuando el actor es `encargado`.
+`permisos_encargado`: una fila por sección (`panel`, `caja`, `cocina`, `reparto`, `inventario`, `registro`, `productos`) con `permitido boolean`. `actividad`: `usuario_id`, `rol`, `accion` (texto libre, ej. `Creó el pedido #24`), `creado_en` — solo se escribe cuando el actor es `encargado`.
+
+`promociones`: `nombre`, `porcentaje` (1-100), `activo`, `fecha_inicio`/`fecha_fin` (ambas nullable = sin límite de fecha). `promocion_productos` es la tabla intermedia (una promo puede aplicar a varios productos). Si un producto queda alcanzado por más de una promo activa a la vez, se usa la de mayor porcentaje.
 
 `facturas`: `numero_factura` autoincremental (serial), vinculada a `pedido_id` + `cobro_id`, con `metodo_pago`/`estado_pago` copiados del cobro. Se crea automáticamente en `POST /api/cobros`. `movimientos_stock`: `tipo` ('ingreso'/'ajuste'), `cantidad`, `nota`, `usuario_id` — se crea en `POST /api/insumos/:id/ingreso`.
 
@@ -135,13 +139,14 @@ Nota de proceso para el futuro: el usuario mandó las fotos corregidas pegándol
 - **Actividad**: tabla `actividad` (`usuario_id`, `rol`, `accion`, `creado_en`). `registrarActividad()` en `rutas/actividad.js` es un helper que cualquier ruta puede llamar — solo escribe si el actor es `encargado` (al propietario no le hace falta notificarse a sí mismo). Está enganchado en: crear pedido, cambiar estado de pedido, cobrar, verificar transferencia, registrar incidencia, ingreso de stock, agregar producto. `GET /api/actividad` (solo propietario) alimenta un feed nuevo en `panel.html` ("🔐 Actividad del encargado"), visible solo si el usuario logueado es propietario.
 - Probado de punta a punta con un usuario de prueba (`encargado@burgerpoint.com`, borrado después de probar): login como encargado devuelve sus permisos, el nav-switcher y `requireAuth` ocultan/bloquean las secciones deshabilitadas, un intento de golpear `/api/insumos` directo por API da 403 aunque se salte el frontend, y una acción del encargado (crear un pedido) aparece en el feed de actividad del propietario con su nombre y hora.
 
-## Pendiente de la última ronda de pedidos (no implementado todavía)
+## Precios editables y promociones (2026-09-07)
 
-El usuario pidió seis cosas grandes de una — se está entregando de a una, en el orden que él priorizó. Ya hechas: inventario + factura, menú digital + auto-notificación, fotos del menú, rol de encargado + permisos + actividad (todo arriba). **Todavía falta**:
+- **`productos.html`** (propietario/encargado, permiso nuevo `productos` en `permisos_encargado`): pestaña "Precios" con tabla de todos los productos (activos y ocultos, `GET /api/productos?todos=true`), edición de nombre/precio/descripción/visibilidad vía `PATCH /api/productos/:id` (nuevo), y alta de productos nuevos. Pestaña "Promociones": crear un descuento por **porcentaje** sobre uno o más productos, con fecha de inicio/fin opcionales — activar/desactivar con un switch, eliminar.
+- **El descuento es real, no un cartel**: `aplicarPromociones()` en `rutas/promociones.js` calcula `precio_final` en el servidor a partir de la promo activa con mayor porcentaje para cada producto, y ese valor es el que se usa — nunca el precio de lista — en los tres lugares donde se cobra: `GET /api/productos` (caja), `GET /api/menu` y `POST /api/menu/pedido` (menú digital del cliente). El cliente nunca puede mandar su propio precio; se recalcula siempre server-side. `caja.html` y `menu.html` muestran el precio viejo tachado + el nuevo cuando hay descuento.
+- Se decidió por elección explícita del usuario: descuento automático real (no solo cartel de marketing) y solo tipo porcentaje por ahora (no monto fijo ni precio promocional fijo) — si en el futuro se necesita otro tipo de descuento, hay que sumar una columna `tipo` a `promociones` y extender `aplicarPromociones()`.
+- Probado de punta a punta en local y limpiado después: promo de -20% sobre Blue Cheese ($8.500 → $6.800) se reflejó en caja, en el menú digital y en un pedido online real (verificado que `pedido_items.precio_unitario` quedó en 6800, no en el precio de lista). También se probó editar el precio de un producto y confirmarlo en la tabla.
 
-1. **Precios y promociones**: pantalla para que propietario/encargado editen precios de `productos` (ya existe `POST /api/productos`, falta el `PATCH` y la UI) y una gestión de promociones nueva de cero (no hay tabla `promociones` todavía).
-
-Cuando se retome, conviene re-preguntar prioridad si pasó tiempo — el usuario dijo que las va a querer todas, pero una por vez.
+Con esto se completaron las seis cosas grandes que el usuario pidió de una: inventario + factura, menú digital + auto-notificación, fotos del menú, rol de encargado + permisos + actividad, y precios + promociones. No queda ningún pendiente conocido de esa ronda — el próximo trabajo depende de lo que el usuario pida a continuación.
 
 ## Notas técnicas conocidas
 
