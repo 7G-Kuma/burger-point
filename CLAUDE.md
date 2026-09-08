@@ -109,6 +109,12 @@ Nota de seguridad actualizada: desde que existe `menu.html`, `pedidos` **sí** g
 - **Sin generador de imágenes disponible en este entorno** — no se pudieron crear fotos ni renders realistas. En su lugar: `menu.html` ya tiene el layout listo para imagen (`producto-img` con fallback "Foto próximamente" si el archivo no existe) apuntando a `/img/productos/<slug>.jpg`, donde `<slug>` sale de `slugify(nombre)` en el propio `menu.html` (minúsculas, sin acentos, `&`→`y`, espacios→guiones). En cuanto exista el archivo con el nombre exacto, aparece solo, sin tocar código.
 - **`docs/prompts-fotos-menu.md`**: un prompt de foto por producto (16), armado con los ingredientes reales de cada receta, más un párrafo de "estilo general" para que las 16 fotos queden visualmente consistentes entre sí. Pensado para pegar en Midjourney/DALL-E/Gemini y después subir el resultado con el nombre de archivo que indica la tabla del documento.
 
+## Fotos del menú cargadas (2026-09-07)
+
+Las 16 fotos generadas por el usuario con los prompts de arriba ya están en `public/img/productos/<slug>.jpg` y se ven en `menu.html` (confirmado en local, las 16 cargan sin fallback).
+
+⚠️ **Pendiente de decisión del usuario**: 8 de las 16 fotos (las 7 papas menos `papas-ranch-y-crispy-onion` + las 2 bebidas) traen un texto de marca quemado en la imagen — "SPICY BURGER CO." en vez de "Burger Point" — porque el prompt pedía "sin texto" pero el generador lo ignoró e inventó un nombre. Las 7 hamburguesas salieron limpias, sin texto. Si se quiere corregir, hay que regenerar esas 8 agregando algo como *"si aparece texto de marca en la imagen, que diga exactamente 'Burger Point', nunca otro nombre"* al prompt, y volver a pasar el archivo con el mismo nombre para reemplazarlo. No se le preguntó al usuario si esto le molesta o no — se avisó y se seguirá con el resto hasta que él decida.
+
 ## Pendiente de la última ronda de pedidos (no implementado todavía)
 
 El usuario pidió seis cosas grandes de una — se está entregando de a una, en el orden que él priorizó. Ya hechas: inventario + factura, menú digital + auto-notificación (arriba). **Todavía faltan**:
