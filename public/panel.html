@@ -68,6 +68,33 @@
       border: 1px solid var(--border);
       border-radius: 8px;
     }
+    .actividad-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-bottom: 32px;
+    }
+    .actividad-item {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .actividad-item:last-child { border-bottom: none; }
+    .actividad-item .quien {
+      font-weight: 600;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    .actividad-item .accion { color: var(--text); flex: 1; }
+    .actividad-item .cuando {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -130,6 +157,17 @@
       <div class="no-alertas">Cargando alertas...</div>
     </div>
 
+    <!-- ACTIVIDAD DEL ENCARGADO (solo propietario) -->
+    <div id="bloque-actividad" style="display:none;">
+      <div class="section-header">
+        <h2>🔐 Actividad del encargado</h2>
+        <a href="/permisos.html" class="btn btn-secondary" style="font-size:13px;">Editar permisos</a>
+      </div>
+      <div class="actividad-list" id="actividad-list">
+        <div class="no-alertas">Cargando actividad...</div>
+      </div>
+    </div>
+
     <!-- PEDIDOS RECIENTES -->
     <div class="section-header">
       <h2>Pedidos recientes</h2>
@@ -161,7 +199,7 @@
   <script>
     // Verifica que el usuario tenga acceso
     window.addEventListener('load', () => {
-      if (!requireAuth(['propietario', 'encargado'])) return
+      if (!requireAuth(['propietario', 'encargado'], 'panel')) return
       renderNavSwitcher()
 
       const usuario = getUsuario()
@@ -174,6 +212,10 @@
       })
       document.getElementById('fecha-hoy').textContent = hoy
 
+      if (usuario.rol === 'propietario') {
+        document.getElementById('bloque-actividad').style.display = 'block'
+      }
+
       cargarDatos()
 
       // Actualiza cada 60 segundos
@@ -181,11 +223,32 @@
     })
 
     async function cargarDatos() {
-      await Promise.all([
+      const tareas = [
         cargarEstadisticas(),
         cargarPedidosRecientes(),
         cargarAlertas()
-      ])
+      ]
+      if (getUsuario()?.rol === 'propietario') tareas.push(cargarActividad())
+      await Promise.all(tareas)
+    }
+
+    async function cargarActividad() {
+      const data = await api('/api/actividad?limite=20')
+      const lista = document.getElementById('actividad-list')
+      if (!data || !data.actividad) return
+
+      if (data.actividad.length === 0) {
+        lista.innerHTML = `<div class="no-alertas">El encargado todavía no registró ninguna acción</div>`
+        return
+      }
+
+      lista.innerHTML = data.actividad.map(a => `
+        <div class="actividad-item">
+          <span class="quien">${a.usuarios?.nombre || 'Encargado'}</span>
+          <span class="accion">${a.accion}</span>
+          <span class="cuando">${formatFecha(a.creado_en)}</span>
+        </div>
+      `).join('')
     }
 
     async function cargarEstadisticas() {

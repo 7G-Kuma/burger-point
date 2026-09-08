@@ -40,6 +40,13 @@ router.post('/login', async (req, res) => {
       { expiresIn: '12h' }
     )
 
+    // El encargado necesita saber qué secciones tiene habilitadas desde que entra
+    let permisos = {}
+    if (usuario.rol === 'encargado') {
+      const { data: filas } = await supabase.from('permisos_encargado').select('seccion, permitido')
+      filas?.forEach(p => { permisos[p.seccion] = p.permitido })
+    }
+
     res.json({
       token,
       usuario: {
@@ -47,7 +54,8 @@ router.post('/login', async (req, res) => {
         nombre: usuario.nombre,
         email:  usuario.email,
         rol:    usuario.rol
-      }
+      },
+      permisos
     })
 
   } catch (err) {

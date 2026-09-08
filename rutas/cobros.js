@@ -1,6 +1,7 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
 const { getSupabase } = require('./db')
+const { registrarActividad } = require('./actividad')
 
 const router = express.Router()
 
@@ -68,6 +69,9 @@ router.post('/', auth, async (req, res) => {
 
   if (errorFactura) return res.status(500).json({ error: errorFactura.message })
 
+  const { data: pedido } = await supabase.from('pedidos').select('numero_pedido').eq('id', pedido_id).single()
+  await registrarActividad(supabase, req.usuario, `Cobró $${Number(monto).toLocaleString('es-AR')} (${metodo}) del pedido #${pedido?.numero_pedido}`)
+
   res.json({ ok: true, cobro, factura })
 })
 
@@ -86,6 +90,8 @@ router.patch('/:id/verificar', auth, async (req, res) => {
     .from('facturas')
     .update({ estado_pago: 'verificado' })
     .eq('cobro_id', req.params.id)
+
+  await registrarActividad(supabase, req.usuario, `Verificó una transferencia pendiente`)
 
   res.json({ ok: true })
 })

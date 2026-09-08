@@ -298,7 +298,7 @@
     let idsConocidos = null // null = todavía no cargamos nada; evita alertar en la primera carga
 
     window.addEventListener('load', () => {
-      if (!requireAuth(['caja', 'encargado', 'propietario'])) return
+      if (!requireAuth(['caja', 'encargado', 'propietario'], 'caja')) return
       renderNavSwitcher()
       cargarProductos()
       cargarPedidos()

@@ -3,6 +3,7 @@ const jwt     = require('jsonwebtoken')
 const PDFDocument = require('pdfkit')
 const { getSupabase } = require('./db')
 const { obtenerDisponibilidad } = require('./stock')
+const { registrarActividad } = require('./actividad')
 
 const router = express.Router()
 
@@ -234,6 +235,8 @@ router.post('/', auth, async (req, res) => {
 
   if (errorItems) return res.status(500).json({ error: errorItems.message })
 
+  await registrarActividad(supabase, req.usuario, `Creó el pedido #${pedido.numero_pedido}`)
+
   res.json({ ok: true, pedido })
 })
 
@@ -284,12 +287,17 @@ router.patch('/:id/estado', auth, async (req, res) => {
     }
   }
 
-  const { error } = await supabase
+  const { data: actualizado, error } = await supabase
     .from('pedidos')
     .update({ estado, actualizado_en: new Date().toISOString() })
     .eq('id', req.params.id)
+    .select('numero_pedido')
+    .single()
 
   if (error) return res.status(500).json({ error: error.message })
+
+  await registrarActividad(supabase, req.usuario, `Cambió el pedido #${actualizado?.numero_pedido} a "${estado}"`)
+
   res.json({ ok: true })
 })
 

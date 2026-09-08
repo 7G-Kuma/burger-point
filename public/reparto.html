@@ -105,7 +105,7 @@
   <script src="/app.js"></script>
   <script>
     window.addEventListener('load', () => {
-      if (!requireAuth(['reparto', 'encargado', 'propietario'])) return
+      if (!requireAuth(['reparto', 'encargado', 'propietario'], 'reparto')) return
       renderNavSwitcher()
       const usuario = getUsuario()
       document.getElementById('nombre-usuario').textContent = usuario.nombre

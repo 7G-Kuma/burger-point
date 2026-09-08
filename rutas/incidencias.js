@@ -1,6 +1,7 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
 const { getSupabase } = require('./db')
+const { registrarActividad } = require('./actividad')
 
 const router = express.Router()
 
@@ -22,6 +23,9 @@ router.post('/', auth, async (req, res) => {
     .from('incidencias')
     .insert({ pedido_id, tipo, descripcion, usuario_id: req.usuario.id })
   if (error) return res.status(500).json({ error: error.message })
+
+  await registrarActividad(supabase, req.usuario, `Registró una incidencia (${tipo})`)
+
   res.json({ ok: true })
 })
 

@@ -171,6 +171,7 @@
       if (res.ok && data.token) {
         localStorage.setItem('bp_token', data.token)
         localStorage.setItem('bp_usuario', JSON.stringify(data.usuario))
+        localStorage.setItem('bp_permisos', JSON.stringify(data.permisos || {}))
         redirigirPorRol(data.usuario.rol)
       } else {
         errorMsg.textContent = data.error || 'Email o contraseña incorrectos'

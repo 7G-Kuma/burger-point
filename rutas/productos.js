@@ -2,6 +2,7 @@ const express = require('express')
 const jwt     = require('jsonwebtoken')
 const { getSupabase } = require('./db')
 const { obtenerDisponibilidad } = require('./stock')
+const { registrarActividad } = require('./actividad')
 
 const router = express.Router()
 
@@ -47,6 +48,9 @@ router.post('/', auth, async (req, res) => {
     .select()
     .single()
   if (error) return res.status(500).json({ error: error.message })
+
+  await registrarActividad(supabase, req.usuario, `Agregó el producto "${data.nombre}" al menú`)
+
   res.json({ ok: true, producto: data })
 })
 

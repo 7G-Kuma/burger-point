@@ -1,6 +1,8 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
 const { getSupabase } = require('./db')
+const { requireSeccion } = require('./requireSeccion')
+const { registrarActividad } = require('./actividad')
 
 const router = express.Router()
 
@@ -15,15 +17,8 @@ function auth(req, res, next) {
   }
 }
 
-function soloAdmin(req, res, next) {
-  if (!['propietario', 'encargado'].includes(req.usuario.rol)) {
-    return res.status(403).json({ error: 'No tenés permiso para ver el inventario' })
-  }
-  next()
-}
-
 // GET /api/insumos — stock actual de cada insumo, con su estado
-router.get('/', auth, soloAdmin, async (req, res) => {
+router.get('/', auth, requireSeccion('inventario'), async (req, res) => {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('insumos')
@@ -45,7 +40,7 @@ router.get('/', auth, soloAdmin, async (req, res) => {
 })
 
 // GET /api/insumos/movimientos — historial de ingresos/ajustes de stock
-router.get('/movimientos', auth, soloAdmin, async (req, res) => {
+router.get('/movimientos', auth, requireSeccion('inventario'), async (req, res) => {
   const supabase = getSupabase()
   const limite = Math.min(parseInt(req.query.limite) || 50, 200)
 
@@ -60,7 +55,7 @@ router.get('/movimientos', auth, soloAdmin, async (req, res) => {
 })
 
 // POST /api/insumos/:id/ingreso — registrar entrada de mercadería
-router.post('/:id/ingreso', auth, soloAdmin, async (req, res) => {
+router.post('/:id/ingreso', auth, requireSeccion('inventario'), async (req, res) => {
   const supabase = getSupabase()
   const { cantidad, nota } = req.body
 
@@ -70,7 +65,7 @@ router.post('/:id/ingreso', auth, soloAdmin, async (req, res) => {
 
   const { data: insumo, error: errorInsumo } = await supabase
     .from('insumos')
-    .select('cantidad_actual')
+    .select('nombre, cantidad_actual')
     .eq('id', req.params.id)
     .single()
 
@@ -96,6 +91,8 @@ router.post('/:id/ingreso', auth, soloAdmin, async (req, res) => {
     })
 
   if (errorMov) return res.status(500).json({ error: errorMov.message })
+
+  await registrarActividad(supabase, req.usuario, `Registró un ingreso de ${cantidad} en "${insumo.nombre}"`)
 
   res.json({ ok: true, cantidad_actual: nuevaCantidad })
 })

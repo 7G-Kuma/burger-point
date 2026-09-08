@@ -183,7 +183,7 @@
     let pedidosActuales = []
 
     window.addEventListener('load', () => {
-      if (!requireAuth(['propietario', 'encargado'])) return
+      if (!requireAuth(['propietario', 'encargado'], 'registro')) return
       renderNavSwitcher()
       const usuario = getUsuario()
       document.getElementById('nombre-usuario').textContent = usuario.nombre

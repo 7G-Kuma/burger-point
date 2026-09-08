@@ -1,6 +1,7 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
 const { getSupabase } = require('./db')
+const { requireSeccion } = require('./requireSeccion')
 
 const router = express.Router()
 
@@ -17,7 +18,7 @@ function auth(req, res, next) {
 }
 
 // GET /api/panel/estadisticas
-router.get('/estadisticas', auth, async (req, res) => {
+router.get('/estadisticas', auth, requireSeccion('panel'), async (req, res) => {
   const supabase = getSupabase()
 
   // Inicio del día de hoy
@@ -50,7 +51,7 @@ router.get('/estadisticas', auth, async (req, res) => {
 })
 
 // GET /api/panel/alertas
-router.get('/alertas', auth, async (req, res) => {
+router.get('/alertas', auth, requireSeccion('panel'), async (req, res) => {
   const supabase = getSupabase()
   const alertas  = []
 

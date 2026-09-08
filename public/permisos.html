@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Permisos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .permiso-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .permiso-row:last-child { border-bottom: none; }
+    .permiso-info { display: flex; align-items: center; gap: 14px; }
+    .permiso-info .icono { font-size: 22px; }
+    .permiso-info .nombre { font-weight: 600; font-size: 14px; }
+    .permiso-info .detalle { font-size: 12px; color: var(--text-muted); }
+
+    /* Switch */
+    .switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .slider {
+      position: absolute; inset: 0; cursor: pointer;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 26px; transition: 0.2s;
+    }
+    .switch .slider::before {
+      content: ''; position: absolute; height: 18px; width: 18px;
+      left: 3px; bottom: 3px; background: var(--text-muted);
+      border-radius: 50%; transition: 0.2s;
+    }
+    .switch input:checked + .slider { background: rgba(76,175,125,0.25); border-color: var(--ok); }
+    .switch input:checked + .slider::before { transform: translateX(20px); background: var(--ok); }
+    .switch input:disabled + .slider { opacity: 0.5; cursor: not-allowed; }
+
+    .info-box {
+      background: rgba(232,131,42,0.08);
+      border: 1px solid rgba(232,131,42,0.25);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span> · Permisos</span>
+    <div id="nav-switcher"></div>
+    <div class="navbar-right">
+      <span class="navbar-role" id="nombre-usuario"></span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="main-content" style="max-width:640px;">
+    <div class="page-header">
+      <div>
+        <h1>Permisos del encargado</h1>
+        <p style="margin-top:4px;">Elegí a qué secciones puede entrar el rol de encargado</p>
+      </div>
+    </div>
+
+    <div class="info-box">
+      💡 El propietario siempre tiene acceso a todo. Estos interruptores solo afectan al rol <strong>encargado</strong> — cada acción que haga queda registrada y visible en el Panel.
+    </div>
+
+    <div class="card">
+      <div id="lista-permisos">
+        <div style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    const SECCIONES = [
+      { seccion: 'panel',      icono: '📊', nombre: 'Panel',      detalle: 'Estadísticas, alertas y actividad del día' },
+      { seccion: 'caja',       icono: '🛒', nombre: 'Caja',       detalle: 'Crear pedidos y cobrar' },
+      { seccion: 'cocina',     icono: '🔥', nombre: 'Cocina',     detalle: 'Preparar pedidos y registrar errores' },
+      { seccion: 'reparto',    icono: '🛵', nombre: 'Reparto',    detalle: 'Entregas y verificación de transferencias' },
+      { seccion: 'inventario', icono: '📦', nombre: 'Inventario', detalle: 'Ver stock y registrar ingresos' },
+      { seccion: 'registro',   icono: '🧾', nombre: 'Registro',   detalle: 'Historial completo de pedidos y facturas' }
+    ]
+
+    window.addEventListener('load', () => {
+      if (!requireAuth(['propietario'])) return
+      renderNavSwitcher()
+      const usuario = getUsuario()
+      document.getElementById('nombre-usuario').textContent = usuario.nombre
+      cargarPermisos()
+    })
+
+    async function cargarPermisos() {
+      const data = await api('/api/permisos')
+      if (!data) return
+      const permisos = data.permisos || {}
+
+      document.getElementById('lista-permisos').innerHTML = SECCIONES.map(s => `
+        <div class="permiso-row">
+          <div class="permiso-info">
+            <span class="icono">${s.icono}</span>
+            <div>
+              <div class="nombre">${s.nombre}</div>
+              <div class="detalle">${s.detalle}</div>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" ${permisos[s.seccion] !== false ? 'checked' : ''}
+              onchange="cambiarPermiso('${s.seccion}', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      `).join('')
+    }
+
+    async function cambiarPermiso(seccion, permitido) {
+      const data = await api(`/api/permisos/${seccion}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ permitido })
+      })
+      if (data?.ok) {
+        toast(`Encargado ${permitido ? 'ahora puede' : 'ya no puede'} entrar a ${seccion}`, 'ok')
+      } else {
+        toast(data?.error || 'Error al actualizar el permiso', 'danger')
+        cargarPermisos()
+      }
+    }
+  </script>
+</body>
+</html>

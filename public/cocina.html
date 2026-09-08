@@ -180,7 +180,7 @@
     let todosPedidos = []
 
     window.addEventListener('load', () => {
-      if (!requireAuth(['cocina', 'encargado', 'propietario'])) return
+      if (!requireAuth(['cocina', 'encargado', 'propietario'], 'cocina')) return
       renderNavSwitcher()
       const usuario = getUsuario()
       document.getElementById('nombre-usuario').textContent = usuario.nombre

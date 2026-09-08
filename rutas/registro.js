@@ -1,6 +1,7 @@
 const express = require('express')
 const jwt     = require('jsonwebtoken')
 const { getSupabase } = require('./db')
+const { requireSeccion } = require('./requireSeccion')
 
 const router = express.Router()
 
@@ -15,15 +16,8 @@ function auth(req, res, next) {
   }
 }
 
-function soloAdmin(req, res, next) {
-  if (!['propietario', 'encargado'].includes(req.usuario.rol)) {
-    return res.status(403).json({ error: 'No tenés permiso para ver el registro' })
-  }
-  next()
-}
-
 // GET /api/registro — historial completo de pedidos con filtros, para el panel de admin
-router.get('/', auth, soloAdmin, async (req, res) => {
+router.get('/', auth, requireSeccion('registro'), async (req, res) => {
   const supabase = getSupabase()
   const { desde, hasta, estado, canal } = req.query
   const limite = Math.min(parseInt(req.query.limite) || 200, 500)

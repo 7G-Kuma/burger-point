@@ -20,10 +20,28 @@ function getUsuario() {
   return u ? JSON.parse(u) : null
 }
 
+// Obtiene el mapa de permisos del encargado guardado al loguearse ({ seccion: true/false })
+function getPermisos() {
+  const p = localStorage.getItem('bp_permisos')
+  return p ? JSON.parse(p) : {}
+}
+
+// ¿Puede el usuario actual acceder a esta sección? Propietario siempre puede.
+// Para el encargado depende de permisos_encargado (ausente = permitido, por compatibilidad).
+function tienePermiso(seccion) {
+  const usuario = getUsuario()
+  if (!usuario) return false
+  if (usuario.rol === 'propietario') return true
+  if (usuario.rol !== 'encargado') return true // otros roles no se rigen por esta tabla
+  const permisos = getPermisos()
+  return permisos[seccion] !== false
+}
+
 // Cierra sesión
 function cerrarSesion() {
   localStorage.removeItem('bp_token')
   localStorage.removeItem('bp_usuario')
+  localStorage.removeItem('bp_permisos')
   window.location.href = '/index.html'
 }
 
@@ -64,8 +82,10 @@ function badgeEstado(estado) {
   return `<span class="badge badge-${estado}">${labels[estado] || estado}</span>`
 }
 
-// Protege páginas — redirige al login si no hay sesión
-function requireAuth(rolesPermitidos = []) {
+// Protege páginas — redirige al login si no hay sesión.
+// `seccion` es opcional: si se pasa, además de tener el rol correcto, un
+// encargado necesita que el propietario le haya habilitado esa sección.
+function requireAuth(rolesPermitidos = [], seccion = null) {
   const token = getToken()
   const usuario = getUsuario()
   if (!token || !usuario) {
@@ -73,6 +93,10 @@ function requireAuth(rolesPermitidos = []) {
     return false
   }
   if (rolesPermitidos.length > 0 && !rolesPermitidos.includes(usuario.rol)) {
+    window.location.href = '/index.html'
+    return false
+  }
+  if (seccion && usuario.rol === 'encargado' && !tienePermiso(seccion)) {
     window.location.href = '/index.html'
     return false
   }
@@ -121,13 +145,18 @@ function renderNavSwitcher() {
   if (!['propietario', 'encargado'].includes(usuario.rol)) return
 
   const vistas = [
-    { href: '/panel.html',      icono: '📊', label: 'Panel' },
-    { href: '/caja.html',       icono: '🛒', label: 'Caja' },
-    { href: '/cocina.html',     icono: '🔥', label: 'Cocina' },
-    { href: '/reparto.html',    icono: '🛵', label: 'Reparto' },
-    { href: '/inventario.html', icono: '📦', label: 'Inventario' },
-    { href: '/registro.html',   icono: '🧾', label: 'Registro' }
-  ]
+    { href: '/panel.html',      icono: '📊', label: 'Panel',      seccion: 'panel' },
+    { href: '/caja.html',       icono: '🛒', label: 'Caja',       seccion: 'caja' },
+    { href: '/cocina.html',     icono: '🔥', label: 'Cocina',     seccion: 'cocina' },
+    { href: '/reparto.html',    icono: '🛵', label: 'Reparto',    seccion: 'reparto' },
+    { href: '/inventario.html', icono: '📦', label: 'Inventario', seccion: 'inventario' },
+    { href: '/registro.html',   icono: '🧾', label: 'Registro',   seccion: 'registro' }
+  ].filter(v => usuario.rol === 'propietario' || tienePermiso(v.seccion))
+
+  if (usuario.rol === 'propietario') {
+    vistas.push({ href: '/permisos.html', icono: '🔐', label: 'Permisos' })
+  }
+
   const actual = location.pathname
 
   cont.innerHTML = vistas.map(v => `
