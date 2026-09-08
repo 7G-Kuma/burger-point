@@ -49,6 +49,14 @@
       font-size: 12px;
       color: var(--accent);
     }
+    .producto-btn .precio-viejo {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      text-decoration: line-through;
+      margin-right: 4px;
+    }
+    .producto-btn .precio-promo { color: var(--ok); }
     .producto-btn .stock {
       font-family: var(--mono);
       font-size: 10px;
@@ -328,7 +336,9 @@
         return `
         <div class="producto-btn ${sinStock ? 'sin-stock' : ''}" onclick="${sinStock ? '' : `agregarAlCarrito('${p.id}')`}">
           <span class="nombre">${p.nombre}</span>
-          <span class="precio">$${Number(p.precio).toLocaleString('es-AR')}</span>
+          <span class="precio">
+            ${p.descuento_porcentaje ? `<span class="precio-viejo">$${Number(p.precio).toLocaleString('es-AR')}</span><span class="precio-promo">$${Number(p.precio_final).toLocaleString('es-AR')}</span>` : `$${Number(p.precio).toLocaleString('es-AR')}`}
+          </span>
           ${stockTexto ? `<span class="stock ${stockClase}">${stockTexto}</span>` : ''}
         </div>`
       }).join('')
@@ -348,7 +358,7 @@
       if (existe) {
         existe.cantidad++
       } else {
-        carrito.push({ producto_id: productoId, nombre: prod.nombre, precio_unitario: prod.precio, cantidad: 1 })
+        carrito.push({ producto_id: productoId, nombre: prod.nombre, precio_unitario: prod.precio_final, cantidad: 1 })
       }
       renderCarrito()
     }

@@ -86,6 +86,21 @@
     .producto-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
     .producto-head .nombre { font-size: 14px; font-weight: 700; font-family: var(--font-display); }
     .producto-head .precio { font-family: var(--mono); font-size: 13px; color: var(--accent); white-space: nowrap; }
+    .producto-head .precio-viejo { text-decoration: line-through; color: var(--text-muted); font-size: 11px; margin-right: 4px; }
+    .producto-head .precio-promo { color: var(--ok); }
+    .chip-descuento {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: rgba(76,175,125,0.9);
+      color: #06120c;
+      font-weight: 700;
+    }
     .producto-body .descripcion { font-size: 12px; color: var(--text-muted); line-height: 1.4; flex: 1; }
     .producto-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
     .producto-footer .stock { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
@@ -222,11 +237,14 @@
               <span class="texto">Foto próximamente</span>
             </div>
             ${sinStock ? '<span class="stock-chip">Agotado</span>' : ''}
+            ${p.descuento_porcentaje ? `<span class="chip-descuento">-${p.descuento_porcentaje}%</span>` : ''}
           </div>
           <div class="producto-body">
             <div class="producto-head">
               <span class="nombre">${p.nombre}</span>
-              <span class="precio">$${Number(p.precio).toLocaleString('es-AR')}</span>
+              <span class="precio">
+                ${p.descuento_porcentaje ? `<span class="precio-viejo">$${Number(p.precio).toLocaleString('es-AR')}</span><span class="precio-promo">$${Number(p.precio_final).toLocaleString('es-AR')}</span>` : `$${Number(p.precio).toLocaleString('es-AR')}`}
+              </span>
             </div>
             <p class="descripcion">${p.descripcion || ''}</p>
             <div class="producto-footer">
@@ -250,7 +268,7 @@
       }
 
       if (existe) existe.cantidad++
-      else carrito.push({ producto_id: productoId, nombre: prod.nombre, precio_unitario: prod.precio, cantidad: 1 })
+      else carrito.push({ producto_id: productoId, nombre: prod.nombre, precio_unitario: prod.precio_final, cantidad: 1 })
       renderCarrito()
     }
 

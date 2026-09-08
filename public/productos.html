@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Precios y Promociones</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .tab-btn.active { border-color: var(--accent); background: rgba(232,131,42,0.1); color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .precio-viejo { text-decoration: line-through; color: var(--text-muted); font-size: 12px; margin-right: 6px; }
+    .precio-promo { color: var(--ok); font-weight: 700; }
+    .chip-descuento {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(76,175,125,0.15);
+      color: var(--ok);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .chip-oculto {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(138,125,110,0.2);
+      color: var(--text-muted);
+    }
+
+    .promo-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-card);
+    }
+    .promo-card.inactiva { opacity: 0.55; }
+    .promo-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .promo-nombre { font-weight: 700; font-size: 15px; }
+    .promo-pct {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ok);
+      font-weight: 700;
+      background: rgba(76,175,125,0.12);
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .promo-productos { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+    .promo-fechas { font-size: 11px; color: var(--text-muted); font-family: var(--mono); margin-bottom: 10px; }
+    .promo-acciones { display: flex; align-items: center; gap: 10px; }
+
+    .switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .slider {
+      position: absolute; inset: 0; cursor: pointer;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 26px; transition: 0.2s;
+    }
+    .switch .slider::before {
+      content: ''; position: absolute; height: 16px; width: 16px;
+      left: 3px; bottom: 3px; background: var(--text-muted);
+      border-radius: 50%; transition: 0.2s;
+    }
+    .switch input:checked + .slider { background: rgba(76,175,125,0.25); border-color: var(--ok); }
+    .switch input:checked + .slider::before { transform: translateX(18px); background: var(--ok); }
+
+    .checklist-productos {
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .checklist-productos label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 13px;
+      font-weight: 400;
+      cursor: pointer;
+    }
+    .checklist-productos input { width: auto; }
+
+    .modal-bg {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .modal-card { width: 100%; max-width: 420px; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span> · Precios</span>
+    <div id="nav-switcher"></div>
+    <div class="navbar-right">
+      <span class="navbar-role" id="nombre-usuario"></span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div>
+        <h1>Precios y promociones</h1>
+        <p style="margin-top:4px;">Editá los precios del menú y armá descuentos por tiempo limitado</p>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab-btn active" onclick="setTab('precios', this)">Precios</div>
+      <div class="tab-btn" onclick="setTab('promos', this)">Promociones</div>
+    </div>
+
+    <!-- PRECIOS -->
+    <div class="tab-panel active" id="panel-precios">
+      <div class="page-header" style="margin-bottom:12px;">
+        <div></div>
+        <button class="btn btn-primary" onclick="abrirModalProducto()" style="font-size:13px;">+ Nuevo producto</button>
+      </div>
+      <div class="card">
+        <div class="tabla-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Precio</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabla-productos">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROMOCIONES -->
+    <div class="tab-panel" id="panel-promos">
+      <div class="page-header" style="margin-bottom:12px;">
+        <div></div>
+        <button class="btn btn-primary" onclick="abrirModalPromo()" style="font-size:13px;">+ Nueva promoción</button>
+      </div>
+      <div id="lista-promos">
+        <div style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PRODUCTO -->
+  <div class="modal-bg" id="modal-producto">
+    <div class="card modal-card">
+      <div class="card-header">
+        <h3 id="modal-producto-titulo">Nuevo producto</h3>
+        <button onclick="cerrarModales()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div class="input-group mt-16">
+        <label>Nombre</label>
+        <input type="text" id="prod-nombre" placeholder="Ej: Blue Cheese">
+      </div>
+      <div class="input-group mt-16">
+        <label>Precio</label>
+        <input type="number" id="prod-precio" min="0" step="1" placeholder="0">
+      </div>
+      <div class="input-group mt-16">
+        <label>Descripción</label>
+        <input type="text" id="prod-descripcion" placeholder="Ingredientes, algo breve">
+      </div>
+      <div class="input-group mt-16" id="grupo-prod-activo" style="display:none;">
+        <label style="display:flex;align-items:center;justify-content:space-between;">
+          Visible en el menú
+          <label class="switch"><input type="checkbox" id="prod-activo" checked><span class="slider"></span></label>
+        </label>
+      </div>
+      <button class="btn btn-primary btn-full mt-16" onclick="guardarProducto()">Guardar</button>
+    </div>
+  </div>
+
+  <!-- MODAL PROMOCIÓN -->
+  <div class="modal-bg" id="modal-promo">
+    <div class="card modal-card">
+      <div class="card-header">
+        <h3>Nueva promoción</h3>
+        <button onclick="cerrarModales()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div class="input-group mt-16">
+        <label>Nombre de la promoción</label>
+        <input type="text" id="promo-nombre" placeholder="Ej: 20% off hamburguesas">
+      </div>
+      <div class="input-group mt-16">
+        <label>Porcentaje de descuento</label>
+        <input type="number" id="promo-porcentaje" min="1" max="100" step="1" placeholder="20">
+      </div>
+      <div class="input-group mt-16">
+        <label>Productos alcanzados</label>
+        <div class="checklist-productos" id="promo-productos-checklist"></div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="input-group mt-16" style="flex:1;">
+          <label>Desde (opcional)</label>
+          <input type="date" id="promo-desde">
+        </div>
+        <div class="input-group mt-16" style="flex:1;">
+          <label>Hasta (opcional)</label>
+          <input type="date" id="promo-hasta">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full mt-16" onclick="guardarPromo()">Crear promoción</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    let productos = []
+    let promos = []
+    let productoEditando = null
+
+    window.addEventListener('load', () => {
+      if (!requireAuth(['propietario', 'encargado'], 'productos')) return
+      renderNavSwitcher()
+      const usuario = getUsuario()
+      document.getElementById('nombre-usuario').textContent = usuario.nombre
+      cargarTodo()
+    })
+
+    function setTab(tab, el) {
+      document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'))
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+      el.classList.add('active')
+      document.getElementById('panel-' + tab).classList.add('active')
+    }
+
+    async function cargarTodo() {
+      await Promise.all([cargarProductos(), cargarPromos()])
+    }
+
+    async function cargarProductos() {
+      const data = await api('/api/productos?todos=true')
+      if (!data) return
+      productos = data.productos || []
+      renderProductos()
+    }
+
+    function renderProductos() {
+      const tbody = document.getElementById('tabla-productos')
+      if (productos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px;">Sin productos cargados</td></tr>`
+        return
+      }
+      tbody.innerHTML = productos.map(p => `
+        <tr>
+          <td>${p.nombre}</td>
+          <td class="mono">
+            ${p.descuento_porcentaje ? `
+              <span class="precio-viejo">$${Number(p.precio).toLocaleString('es-AR')}</span>
+              <span class="precio-promo">$${Number(p.precio_final).toLocaleString('es-AR')}</span>
+              <span class="chip-descuento">-${p.descuento_porcentaje}%</span>
+            ` : `$${Number(p.precio).toLocaleString('es-AR')}`}
+          </td>
+          <td>${p.activo ? '<span class="text-ok" style="font-size:12px;">● Visible</span>' : '<span class="chip-oculto">Oculto</span>'}</td>
+          <td><button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="abrirModalProducto('${p.id}')">✎ Editar</button></td>
+        </tr>
+      `).join('')
+    }
+
+    function abrirModalProducto(id) {
+      productoEditando = id || null
+      const grupoActivo = document.getElementById('grupo-prod-activo')
+      if (id) {
+        const p = productos.find(x => x.id === id)
+        document.getElementById('modal-producto-titulo').textContent = 'Editar — ' + p.nombre
+        document.getElementById('prod-nombre').value = p.nombre
+        document.getElementById('prod-precio').value = p.precio
+        document.getElementById('prod-descripcion').value = p.descripcion || ''
+        document.getElementById('prod-activo').checked = p.activo
+        grupoActivo.style.display = 'block'
+      } else {
+        document.getElementById('modal-producto-titulo').textContent = 'Nuevo producto'
+        document.getElementById('prod-nombre').value = ''
+        document.getElementById('prod-precio').value = ''
+        document.getElementById('prod-descripcion').value = ''
+        grupoActivo.style.display = 'none'
+      }
+      document.getElementById('modal-producto').style.display = 'flex'
+    }
+
+    async function guardarProducto() {
+      const nombre = document.getElementById('prod-nombre').value.trim()
+      const precio = Number(document.getElementById('prod-precio').value)
+      const descripcion = document.getElementById('prod-descripcion').value.trim()
+
+      if (!nombre) { toast('Ingresá un nombre', 'warning'); return }
+      if (!precio || precio <= 0) { toast('Ingresá un precio válido', 'warning'); return }
+
+      let data
+      if (productoEditando) {
+        const activo = document.getElementById('prod-activo').checked
+        data = await api(`/api/productos/${productoEditando}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ nombre, precio, descripcion, activo })
+        })
+      } else {
+        data = await api('/api/productos', {
+          method: 'POST',
+          body: JSON.stringify({ nombre, precio, descripcion })
+        })
+      }
+
+      if (data?.ok) {
+        toast('Producto guardado ✓', 'ok')
+        cerrarModales()
+        cargarProductos()
+      } else {
+        toast(data?.error || 'Error al guardar el producto', 'danger')
+      }
+    }
+
+    async function cargarPromos() {
+      const data = await api('/api/promociones')
+      if (!data) return
+      promos = data.promociones || []
+      renderPromos()
+    }
+
+    function estadoPromo(p) {
+      const ahora = new Date()
+      if (!p.activo) return { texto: 'Desactivada', clase: 'inactiva' }
+      if (p.fecha_inicio && new Date(p.fecha_inicio) > ahora) return { texto: 'Programada', clase: '' }
+      if (p.fecha_fin && new Date(p.fecha_fin) < ahora) return { texto: 'Vencida', clase: 'inactiva' }
+      return { texto: 'Activa ahora', clase: '' }
+    }
+
+    function renderPromos() {
+      const cont = document.getElementById('lista-promos')
+      if (promos.length === 0) {
+        cont.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:32px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">Todavía no creaste ninguna promoción</div>`
+        return
+      }
+      cont.innerHTML = promos.map(p => {
+        const estado = estadoPromo(p)
+        const nombresProductos = p.promocion_productos?.map(pp => pp.productos?.nombre).filter(Boolean).join(', ') || '—'
+        const fechas = (p.fecha_inicio || p.fecha_fin)
+          ? `${p.fecha_inicio ? new Date(p.fecha_inicio).toLocaleDateString('es-AR') : 'sin inicio'} → ${p.fecha_fin ? new Date(p.fecha_fin).toLocaleDateString('es-AR') : 'sin fin'}`
+          : 'Sin fecha de vencimiento'
+        return `
+          <div class="promo-card ${estado.clase}">
+            <div class="promo-head">
+              <span class="promo-nombre">${p.nombre}</span>
+              <span class="promo-pct">-${p.porcentaje}%</span>
+            </div>
+            <div class="promo-productos">🍔 ${nombresProductos}</div>
+            <div class="promo-fechas">${fechas} · ${estado.texto}</div>
+            <div class="promo-acciones">
+              <label class="switch">
+                <input type="checkbox" ${p.activo ? 'checked' : ''} onchange="togglePromo('${p.id}', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <span style="font-size:12px;color:var(--text-muted);">${p.activo ? 'Habilitada' : 'Deshabilitada'}</span>
+              <button class="btn btn-danger" style="font-size:12px;padding:5px 10px;margin-left:auto;" onclick="borrarPromo('${p.id}', '${p.nombre.replace(/'/g, "\\'")}')">Eliminar</button>
+            </div>
+          </div>`
+      }).join('')
+    }
+
+    function abrirModalPromo() {
+      document.getElementById('promo-nombre').value = ''
+      document.getElementById('promo-porcentaje').value = ''
+      document.getElementById('promo-desde').value = ''
+      document.getElementById('promo-hasta').value = ''
+      document.getElementById('promo-productos-checklist').innerHTML = productos
+        .filter(p => p.activo)
+        .map(p => `
+          <label><input type="checkbox" value="${p.id}"> ${p.nombre} — $${Number(p.precio).toLocaleString('es-AR')}</label>
+        `).join('') || '<p style="color:var(--text-muted);font-size:12px;">No hay productos activos</p>'
+      document.getElementById('modal-promo').style.display = 'flex'
+    }
+
+    async function guardarPromo() {
+      const nombre = document.getElementById('promo-nombre').value.trim()
+      const porcentaje = Number(document.getElementById('promo-porcentaje').value)
+      const desde = document.getElementById('promo-desde').value
+      const hasta = document.getElementById('promo-hasta').value
+      const producto_ids = Array.from(document.querySelectorAll('#promo-productos-checklist input:checked')).map(c => c.value)
+
+      if (!nombre) { toast('Ingresá un nombre para la promoción', 'warning'); return }
+      if (!porcentaje || porcentaje <= 0 || porcentaje > 100) { toast('El porcentaje tiene que estar entre 1 y 100', 'warning'); return }
+      if (producto_ids.length === 0) { toast('Elegí al menos un producto', 'warning'); return }
+
+      const data = await api('/api/promociones', {
+        method: 'POST',
+        body: JSON.stringify({
+          nombre, porcentaje, producto_ids,
+          fecha_inicio: desde ? new Date(desde).toISOString() : null,
+          fecha_fin: hasta ? new Date(hasta + 'T23:59:59').toISOString() : null
+        })
+      })
+
+      if (data?.ok) {
+        toast('Promoción creada ✓', 'ok')
+        cerrarModales()
+        cargarTodo()
+      } else {
+        toast(data?.error || 'Error al crear la promoción', 'danger')
+      }
+    }
+
+    async function togglePromo(id, activo) {
+      const data = await api(`/api/promociones/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ activo })
+      })
+      if (data?.ok) {
+        toast(activo ? 'Promoción activada' : 'Promoción desactivada', 'ok')
+        cargarTodo()
+      } else {
+        toast(data?.error || 'Error al actualizar la promoción', 'danger')
+        cargarPromos()
+      }
+    }
+
+    async function borrarPromo(id, nombre) {
+      if (!confirm(`¿Eliminar la promoción "${nombre}"?`)) return
+      const data = await api(`/api/promociones/${id}`, { method: 'DELETE' })
+      if (data?.ok) {
+        toast('Promoción eliminada', 'ok')
+        cargarTodo()
+      } else {
+        toast(data?.error || 'Error al eliminar', 'danger')
+      }
+    }
+
+    function cerrarModales() {
+      document.getElementById('modal-producto').style.display = 'none'
+      document.getElementById('modal-promo').style.display = 'none'
+    }
+  </script>
+</body>
+</html>

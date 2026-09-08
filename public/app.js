@@ -150,7 +150,8 @@ function renderNavSwitcher() {
     { href: '/cocina.html',     icono: '🔥', label: 'Cocina',     seccion: 'cocina' },
     { href: '/reparto.html',    icono: '🛵', label: 'Reparto',    seccion: 'reparto' },
     { href: '/inventario.html', icono: '📦', label: 'Inventario', seccion: 'inventario' },
-    { href: '/registro.html',   icono: '🧾', label: 'Registro',   seccion: 'registro' }
+    { href: '/registro.html',   icono: '🧾', label: 'Registro',   seccion: 'registro' },
+    { href: '/productos.html',  icono: '💲', label: 'Precios',    seccion: 'productos' }
   ].filter(v => usuario.rol === 'propietario' || tienePermiso(v.seccion))
 
   if (usuario.rol === 'propietario') {

@@ -39,6 +39,7 @@ const insumosRutas    = require('./rutas/insumos')
 const menuRutas       = require('./rutas/menu')
 const permisosRutas   = require('./rutas/permisos')
 const { router: actividadRutas } = require('./rutas/actividad')
+const { router: promocionesRutas } = require('./rutas/promociones')
 
 app.use('/api/auth',      authRutas)
 app.use('/api/panel',     panelRutas)
@@ -52,6 +53,7 @@ app.use('/api/insumos',   insumosRutas)
 app.use('/api/menu',      menuRutas)
 app.use('/api/permisos',  permisosRutas)
 app.use('/api/actividad', actividadRutas)
+app.use('/api/promociones', promocionesRutas)
 
 app.get('/api/ping', (req, res) => {
   res.json({ ok: true, mensaje: 'Servidor Burger Point funcionando' })

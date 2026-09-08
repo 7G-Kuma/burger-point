@@ -1,6 +1,7 @@
 const express = require('express')
 const { getSupabase } = require('./db')
 const { obtenerDisponibilidad } = require('./stock')
+const { aplicarPromociones } = require('./promociones')
 
 const router = express.Router()
 
@@ -16,7 +17,8 @@ router.get('/', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message })
 
   const disponibilidad = await obtenerDisponibilidad(supabase)
-  const productos = data.map(p => ({
+  const conPromos = await aplicarPromociones(supabase, data)
+  const productos = conPromos.map(p => ({
     ...p,
     disponible: disponibilidad[p.id] ?? null
   }))
@@ -52,15 +54,18 @@ router.post('/pedido', async (req, res) => {
   }
 
   // El precio se toma del producto en el servidor — nunca del cliente, para que no se pueda falsear
-  const { data: productos, error: errorProductos } = await supabase
+  const { data: productosRaw, error: errorProductos } = await supabase
     .from('productos')
     .select('id, precio, activo')
     .in('id', items.map(i => i.producto_id))
 
   if (errorProductos) return res.status(500).json({ error: errorProductos.message })
-  if (productos.some(p => !p.activo) || productos.length !== new Set(items.map(i => i.producto_id)).size) {
+  if (productosRaw.some(p => !p.activo) || productosRaw.length !== new Set(items.map(i => i.producto_id)).size) {
     return res.status(400).json({ error: 'Uno de los productos ya no está disponible' })
   }
+
+  // precio_final ya viene con el descuento de cualquier promoción activa aplicado
+  const productos = await aplicarPromociones(supabase, productosRaw)
 
   const canal = tipo_entrega === 'delivery' ? 'delivery' : 'online'
 
@@ -86,7 +91,7 @@ router.post('/pedido', async (req, res) => {
       pedido_id: pedido.id,
       producto_id: i.producto_id,
       cantidad: i.cantidad,
-      precio_unitario: producto.precio,
+      precio_unitario: producto.precio_final,
       observacion: i.observacion || null
     }
   })
