@@ -4,9 +4,9 @@ Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreS
 
 **URL en producción**: https://burger-point-vtlu.onrender.com — se duerme tras 15 min sin tráfico, primer request siguiente tarda 30-60s en responder (comportamiento normal del plan free, no es un error).
 
-## Estado general (al 2026-09-04)
+## Estado general (al 2026-09-07)
 
-Las 6 fases del plan original (configuración, login+roles, panel, pedidos/caja, cocina+reparto, cobros+deploy) están completas y en producción desde el 2026-09-03. Desde entonces se agregó bastante más de lo planeado originalmente — stock visible, rediseño visual + logo, seguimiento del cliente, registro/historial admin, factura numerada persistente, inventario con ingresos, menú digital de autoservicio con auto-notificación a caja, y contenido real (descripciones) del menú. Cada uno tiene su propia sección fechada más abajo, en orden cronológico — es la forma más confiable de saber qué existe y por qué.
+Las 6 fases del plan original (configuración, login+roles, panel, pedidos/caja, cocina+reparto, cobros+deploy) están completas y en producción desde el 2026-09-03. Desde entonces se agregó bastante más de lo planeado originalmente — stock visible, rediseño visual + logo, seguimiento del cliente, registro/historial admin, factura numerada persistente, inventario con ingresos, menú digital de autoservicio con auto-notificación a caja, contenido real (descripciones + fotos) del menú, y un rol de encargado real con permisos por sección y notificación de actividad al propietario. Cada uno tiene su propia sección fechada más abajo, en orden cronológico — es la forma más confiable de saber qué existe y por qué.
 
 **Para retomar el trabajo**: leer la sección "Pendiente de la última ronda de pedidos" al final de este documento — ahí está lo que falta y en qué orden lo pidió el usuario.
 
@@ -29,6 +29,9 @@ rutas/
   registro.js        # GET /api/registro — historial completo con filtros, solo propietario/encargado
   insumos.js         # GET /api/insumos (+ /movimientos), POST /:id/ingreso — inventario, solo propietario/encargado
   menu.js            # GET /api/menu, POST /api/menu/pedido — PÚBLICO, sin auth, menú digital de autoservicio
+  permisos.js        # GET /api/permisos (cualquier logueado), PATCH /api/permisos/:seccion (solo propietario)
+  actividad.js       # GET /api/actividad (solo propietario) + exporta registrarActividad(), usada por otras rutas
+  requireSeccion.js  # middleware factory — bloquea al encargado si el propietario no le habilitó esa sección
 public/
   img/logo.svg       # logo propio (badge circular con hamburguesa), usado como favicon en las 6 páginas
   index.html         # login — links a menu.html y seguimiento.html para el cliente
@@ -40,12 +43,15 @@ public/
   seguimiento.html   # pública, sin login — el cliente ve el estado de su pedido por número
   registro.html      # propietario/encargado — historial completo, filtros, detalle y factura de cada pedido
   inventario.html    # propietario/encargado — stock por insumo, registrar ingresos, historial de movimientos
+  permisos.html      # solo propietario — habilita/bloquea qué secciones puede ver el encargado
 .claude/launch.json  # config para levantar el servidor desde el preview del editor
 ```
 
 ## Base de datos (Supabase, proyecto wvarebdeatfdlmeojzvq)
 
-Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`, `facturas`, `movimientos_stock`. **RLS activado en las 10** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
+Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`, `facturas`, `movimientos_stock`, `permisos_encargado`, `actividad`. **RLS activado en las 12** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
+
+`permisos_encargado`: una fila por sección (`panel`, `caja`, `cocina`, `reparto`, `inventario`, `registro`) con `permitido boolean`. `actividad`: `usuario_id`, `rol`, `accion` (texto libre, ej. `Creó el pedido #24`), `creado_en` — solo se escribe cuando el actor es `encargado`.
 
 `facturas`: `numero_factura` autoincremental (serial), vinculada a `pedido_id` + `cobro_id`, con `metodo_pago`/`estado_pago` copiados del cobro. Se crea automáticamente en `POST /api/cobros`. `movimientos_stock`: `tipo` ('ingreso'/'ajuste'), `cantidad`, `nota`, `usuario_id` — se crea en `POST /api/insumos/:id/ingreso`.
 
@@ -117,18 +123,25 @@ Las 16 fotos generadas por el usuario con los prompts de arriba ya están en `pu
 
 Nota de proceso para el futuro: el usuario mandó las fotos corregidas pegándolas directo en el chat (no como archivo), lo cual no deja un archivo accesible en disco — hay que pedirle que las mande con `@"ruta\al\archivo"` (zip o carpeta) como la primera vez. También llegaron en un `.rar` (no `.zip`) con nombres genéricos de Gemini (`Gemini_Generated_Image_*.jpg`) — no hay `unrar`/`7z` instalados, pero sí `WinRAR` en `C:\Program Files\WinRAR\UnRAR.exe`, que sirve para extraerlo por línea de comandos. Hubo que abrir cada imagen para identificar a qué producto correspondía antes de renombrarla.
 
+## Fotos del menú: 16 productos con imagen real (2026-09-07)
+
+- Las 16 fotos generadas por IA (pedidas via `docs/prompts-fotos-menu.md`) ya están subidas a `public/img/productos/<slug>.jpg` — `menu.html` las muestra automáticamente (usa el mismo `slugify()` que ya tenía, no hizo falta tocar código).
+- 8 de las 16 fotos de la primera tanda salieron con "SPICY BURGER CO." impreso en la imagen (marca inventada por el generador, a pesar de pedir "sin texto") — se detectó al inspeccionar cada imagen antes de subirla (no se publica nada sin abrirlo primero) y se regeneraron esas 8 con un prompt corregido. Las 8 correctas dicen "Burger Point" o no tienen texto. Si en algún momento hay que regenerar alguna, conviene reforzar en el prompt que evite cualquier marca/logo, no solo pedir "sin texto".
+
+## Rol de encargado real + panel de permisos + notificación de actividad (2026-09-07)
+
+- **`permisos_encargado`** (una fila por sección: `panel`, `caja`, `cocina`, `reparto`, `inventario`, `registro`) define qué puede ver el encargado. El propietario los edita desde `permisos.html` (switch por sección, `PATCH /api/permisos/:seccion`) — el propietario siempre tiene acceso a todo, esto solo restringe al encargado.
+- **Enforcement en dos capas**: frontend (`requireAuth(roles, seccion)` en `app.js` redirige a login si el encargado no tiene el permiso; `renderNavSwitcher()` oculta del navbar las secciones bloqueadas) y backend (`requireSeccion(seccion)` en `rutas/requireSeccion.js`, montado en `panel.js`, `registro.js` e `insumos.js`). **Importante**: `caja.js`/`cocina`/`reparto` no tienen un archivo de rutas propio con lógica separada por rol — sus endpoints reales son `pedidos.js`/`cobros.js`/`incidencias.js`, que ya eran de acceso libre para cualquier usuario autenticado desde antes de esta feature (el control de "quién ve cada pantalla" es solo frontend ahí). Si en algún momento hace falta bloquear a nivel API también esas tres secciones, hay que decidir primero cómo separar sus rutas por rol sin romper caja/cocina/reparto actuales.
+- **Actividad**: tabla `actividad` (`usuario_id`, `rol`, `accion`, `creado_en`). `registrarActividad()` en `rutas/actividad.js` es un helper que cualquier ruta puede llamar — solo escribe si el actor es `encargado` (al propietario no le hace falta notificarse a sí mismo). Está enganchado en: crear pedido, cambiar estado de pedido, cobrar, verificar transferencia, registrar incidencia, ingreso de stock, agregar producto. `GET /api/actividad` (solo propietario) alimenta un feed nuevo en `panel.html` ("🔐 Actividad del encargado"), visible solo si el usuario logueado es propietario.
+- Probado de punta a punta con un usuario de prueba (`encargado@burgerpoint.com`, borrado después de probar): login como encargado devuelve sus permisos, el nav-switcher y `requireAuth` ocultan/bloquean las secciones deshabilitadas, un intento de golpear `/api/insumos` directo por API da 403 aunque se salte el frontend, y una acción del encargado (crear un pedido) aparece en el feed de actividad del propietario con su nombre y hora.
+
 ## Pendiente de la última ronda de pedidos (no implementado todavía)
 
-El usuario pidió seis cosas grandes de una — se está entregando de a una, en el orden que él priorizó. Ya hechas: inventario + factura, menú digital + auto-notificación (arriba). **Todavía faltan**:
+El usuario pidió seis cosas grandes de una — se está entregando de a una, en el orden que él priorizó. Ya hechas: inventario + factura, menú digital + auto-notificación, fotos del menú, rol de encargado + permisos + actividad (todo arriba). **Todavía falta**:
 
-1. **Rol de encargado real + panel de permisos**: hoy `encargado` existe solo de nombre — en todos lados donde se chequea rol, `encargado` tiene exactamente los mismos permisos que `propietario`. Falta: una tabla/estructura de permisos granular, un panel donde el dueño defina qué puede ver/tocar cada perfil, y que las acciones del encargado le generen una notificación al propietario (falta definir qué significa "notificación" acá — ¿un feed de actividad en el panel? ¿algo más inmediato?).
-2. **Precios y promociones**: pantalla para que propietario/encargado editen precios de `productos` (ya existe `POST /api/productos`, falta el `PATCH` y la UI) y una gestión de promociones nueva de cero (no hay tabla `promociones` todavía).
+1. **Precios y promociones**: pantalla para que propietario/encargado editen precios de `productos` (ya existe `POST /api/productos`, falta el `PATCH` y la UI) y una gestión de promociones nueva de cero (no hay tabla `promociones` todavía).
 
-Cuando se retome cualquiera de estas, conviene re-preguntar prioridad si pasó tiempo — el usuario dijo que las va a querer todas, pero una por vez.
-
-**Además, sin depender de mí**: el usuario tiene pendiente generar las 16 fotos del menú con `docs/prompts-fotos-menu.md` (ver sección de arriba) y pasarlas para subirlas — no es algo que vaya a aparecer solo, hay que preguntar si ya las tiene la próxima vez que se toque `menu.html`.
-
-**Sesión pausada acá a pedido del usuario el 2026-09-04** ("vamos super encaminados", quiere seguir otro día) — no quedó nada roto ni a medio terminar, todo lo de esta sesión está commiteado, pusheado y verificado en producción.
+Cuando se retome, conviene re-preguntar prioridad si pasó tiempo — el usuario dijo que las va a querer todas, pero una por vez.
 
 ## Notas técnicas conocidas
 
