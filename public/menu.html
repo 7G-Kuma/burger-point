@@ -12,13 +12,30 @@
     .menu-nav {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 20px;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 16px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
     }
-    .menu-nav img { width: 40px; height: 40px; }
-    .menu-nav span { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
-    .menu-nav .point { color: var(--accent); }
+    .menu-nav-brand { display: flex; align-items: center; gap: 10px; }
+    .menu-nav-brand img { width: 40px; height: 40px; }
+    .menu-nav-brand span { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+    .menu-nav-brand .point { color: var(--accent); }
+    .menu-nav-links { display: flex; align-items: center; gap: 18px; }
+    .menu-nav-links a {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .menu-nav-links a:hover { color: var(--accent); }
+    @media (max-width: 480px) {
+      .menu-nav { justify-content: center; text-align: center; padding: 14px 16px; }
+      .menu-nav-links { gap: 14px; }
+    }
 
     .layout {
       display: grid;
@@ -163,8 +180,14 @@
 <body>
 
   <div class="menu-nav">
-    <img src="/img/logo.svg" alt="">
-    <span>BURGER <span class="point">POINT</span> · Menú Digital</span>
+    <div class="menu-nav-brand">
+      <img src="/img/logo.svg" alt="">
+      <span>BURGER <span class="point">POINT</span></span>
+    </div>
+    <div class="menu-nav-links">
+      <a href="/seguimiento.html">📦 Seguir mi pedido</a>
+      <a href="/index.html">🔑 Soy del staff</a>
+    </div>
   </div>
 
   <div class="layout">

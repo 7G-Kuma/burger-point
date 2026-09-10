@@ -24,7 +24,14 @@ const app     = express()
 const PORT    = process.env.PORT || 3000
 
 app.use(express.json())
-app.use(express.static(path.join(__dirname, 'public')))
+
+// El link que se comparte con clientes es el dominio raíz — que muestre el
+// menú digital directamente, no el login de staff (que sigue en /index.html).
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'menu.html'))
+})
+
+app.use(express.static(path.join(__dirname, 'public'), { index: false }))
 
 /// Rutas de la API
 const authRutas      = require('./rutas/auth')
