@@ -2,6 +2,7 @@ const express = require('express')
 const { getSupabase } = require('./db')
 const { obtenerDisponibilidad } = require('./stock')
 const { aplicarPromociones } = require('./promociones')
+const { upsertCliente } = require('./clientes')
 
 const router = express.Router()
 
@@ -72,6 +73,14 @@ router.post('/pedido', async (req, res) => {
 
   const canal = tipo_entrega === 'delivery' ? 'delivery' : 'online'
 
+  // Arma/actualiza el perfil del cliente por teléfono en cada pedido — así el
+  // registro de clientes se arma solo, tenga o no un "perfil" explícito armado
+  // desde el login del menú
+  const clienteId = await upsertCliente(supabase, {
+    telefono: cliente_telefono.trim(),
+    nombre: cliente_nombre.trim()
+  })
+
   const { data: pedido, error: errorPedido } = await supabase
     .from('pedidos')
     .insert({
@@ -79,6 +88,7 @@ router.post('/pedido', async (req, res) => {
       observaciones: observaciones || null,
       estado: 'recibido',
       usuario_id: null,
+      cliente_id: clienteId,
       cliente_nombre: cliente_nombre.trim(),
       cliente_telefono: cliente_telefono.trim(),
       cliente_direccion: tipo_entrega === 'delivery' ? cliente_direccion.trim() : null

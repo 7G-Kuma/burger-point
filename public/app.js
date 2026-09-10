@@ -151,7 +151,8 @@ function renderNavSwitcher() {
     { href: '/reparto.html',    icono: '🛵', label: 'Reparto',    seccion: 'reparto' },
     { href: '/inventario.html', icono: '📦', label: 'Inventario', seccion: 'inventario' },
     { href: '/registro.html',   icono: '🧾', label: 'Registro',   seccion: 'registro' },
-    { href: '/productos.html',  icono: '💲', label: 'Precios',    seccion: 'productos' }
+    { href: '/productos.html',  icono: '💲', label: 'Precios',    seccion: 'productos' },
+    { href: '/clientes.html',   icono: '👥', label: 'Clientes',   seccion: 'clientes' }
   ].filter(v => usuario.rol === 'propietario' || tienePermiso(v.seccion))
 
   if (usuario.rol === 'propietario') {

@@ -214,8 +214,16 @@
       <span>BURGER <span class="point">POINT</span></span>
     </div>
     <div class="menu-nav-links">
+      <a href="#" id="link-mi-cuenta" onclick="abrirModalCuenta();return false;">👤 Mi cuenta</a>
       <a href="/seguimiento.html">📦 Seguir mi pedido</a>
       <a href="/index.html">🔑 Soy del staff</a>
+    </div>
+  </div>
+
+  <div id="banner-cliente" style="display:none;max-width:1100px;margin:0 auto;padding:0 24px;">
+    <div style="background:rgba(76,175,125,0.08);border:1px solid rgba(76,175,125,0.25);border-radius:var(--radius);padding:10px 16px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span id="banner-cliente-texto"></span>
+      <a href="#" onclick="salirDeMiCuenta();return false;" style="color:var(--text-muted);font-size:12px;white-space:nowrap;">No soy yo</a>
     </div>
   </div>
 
@@ -296,6 +304,44 @@
     </div>
   </div>
 
+  <div class="modal-extras-bg" id="modal-cuenta">
+    <div class="card modal-extras-card" style="max-width:340px;">
+      <div class="card-header">
+        <h3 id="cuenta-modal-titulo">Mi cuenta</h3>
+        <button onclick="cerrarModalCuenta()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+
+      <div id="cuenta-paso-telefono">
+        <p style="margin-bottom:8px;">Ingresá tu teléfono para que te reconozcamos la próxima vez</p>
+        <div class="input-group">
+          <label>Teléfono</label>
+          <input type="tel" id="cuenta-telefono-input" placeholder="Tu número de siempre">
+        </div>
+        <button class="btn btn-primary btn-full mt-16" onclick="buscarClientePorTelefono()">Continuar</button>
+      </div>
+
+      <div id="cuenta-paso-bienvenida" style="display:none;">
+        <p id="cuenta-bienvenida-texto" style="margin-bottom:16px;"></p>
+        <button class="btn btn-primary btn-full" onclick="confirmarClienteExistente()">Sí, soy yo</button>
+        <button class="btn btn-secondary btn-full mt-8" onclick="mostrarPasoTelefono()">No, es otro número</button>
+      </div>
+
+      <div id="cuenta-paso-nuevo" style="display:none;">
+        <p style="margin-bottom:8px;">Todavía no tenemos tu perfil — creémoslo</p>
+        <div class="input-group">
+          <label>Tu nombre</label>
+          <input type="text" id="cuenta-nombre-input" placeholder="Nombre y apellido">
+        </div>
+        <div class="input-group mt-8">
+          <label>Fecha de nacimiento (opcional)</label>
+          <input type="date" id="cuenta-nacimiento-input">
+        </div>
+        <p style="font-size:11px;margin-top:8px;">Es para mandarte algo especial el día de tu cumple 🎂 — nada más</p>
+        <button class="btn btn-primary btn-full mt-16" onclick="crearPerfilCliente()">Crear mi perfil</button>
+      </div>
+    </div>
+  </div>
+
   <div class="cart-bar" id="cart-bar" onclick="scrollToCart()">
     <span class="info"><span class="count" id="cart-bar-count">0</span>Ver mi pedido</span>
     <span class="total" id="cart-bar-total">$0</span>
@@ -310,7 +356,104 @@
 
     window.addEventListener('load', () => {
       cargarMenu()
+      intentarReconocerCliente()
     })
+
+    // ── MI CUENTA (perfil liviano por teléfono, sin contraseña) ──
+
+    let clienteEncontradoTemp = null
+
+    async function intentarReconocerCliente() {
+      const telefono = localStorage.getItem('bp_cliente_telefono')
+      if (!telefono) return
+      const res = await fetch('/api/clientes/buscar?telefono=' + encodeURIComponent(telefono))
+      const data = await res.json()
+      if (data.existe) {
+        mostrarBannerCliente(data.nombre, telefono)
+      } else {
+        localStorage.removeItem('bp_cliente_telefono')
+      }
+    }
+
+    function mostrarBannerCliente(nombre, telefono) {
+      document.getElementById('banner-cliente-texto').textContent = `👋 Hola de nuevo, ${nombre}`
+      document.getElementById('banner-cliente').style.display = 'block'
+      document.getElementById('link-mi-cuenta').textContent = '👤 ' + nombre
+      document.getElementById('cliente-nombre').value = nombre
+      document.getElementById('cliente-telefono').value = telefono
+    }
+
+    function salirDeMiCuenta() {
+      localStorage.removeItem('bp_cliente_telefono')
+      document.getElementById('banner-cliente').style.display = 'none'
+      document.getElementById('link-mi-cuenta').textContent = '👤 Mi cuenta'
+    }
+
+    function abrirModalCuenta() {
+      mostrarPasoTelefono()
+      document.getElementById('modal-cuenta').style.display = 'flex'
+    }
+
+    function cerrarModalCuenta() {
+      document.getElementById('modal-cuenta').style.display = 'none'
+    }
+
+    function mostrarPasoTelefono() {
+      document.getElementById('cuenta-paso-telefono').style.display = 'block'
+      document.getElementById('cuenta-paso-bienvenida').style.display = 'none'
+      document.getElementById('cuenta-paso-nuevo').style.display = 'none'
+      document.getElementById('cuenta-telefono-input').value = ''
+    }
+
+    async function buscarClientePorTelefono() {
+      const telefono = document.getElementById('cuenta-telefono-input').value.trim()
+      if (!telefono) { toast('Ingresá tu teléfono', 'warning'); return }
+
+      const res = await fetch('/api/clientes/buscar?telefono=' + encodeURIComponent(telefono))
+      const data = await res.json()
+      clienteEncontradoTemp = { telefono, nombre: data.nombre }
+
+      document.getElementById('cuenta-paso-telefono').style.display = 'none'
+
+      if (data.existe) {
+        document.getElementById('cuenta-bienvenida-texto').textContent = `¡Hola, ${data.nombre}! ¿Sos vos?`
+        document.getElementById('cuenta-paso-bienvenida').style.display = 'block'
+      } else {
+        document.getElementById('cuenta-nombre-input').value = ''
+        document.getElementById('cuenta-nacimiento-input').value = ''
+        document.getElementById('cuenta-paso-nuevo').style.display = 'block'
+      }
+    }
+
+    function confirmarClienteExistente() {
+      localStorage.setItem('bp_cliente_telefono', clienteEncontradoTemp.telefono)
+      mostrarBannerCliente(clienteEncontradoTemp.nombre, clienteEncontradoTemp.telefono)
+      cerrarModalCuenta()
+      toast(`¡Bienvenido de nuevo, ${clienteEncontradoTemp.nombre}!`, 'ok')
+    }
+
+    async function crearPerfilCliente() {
+      const nombre = document.getElementById('cuenta-nombre-input').value.trim()
+      const fecha_nacimiento = document.getElementById('cuenta-nacimiento-input').value
+
+      if (!nombre) { toast('Ingresá tu nombre', 'warning'); return }
+
+      const res = await fetch('/api/clientes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefono: clienteEncontradoTemp.telefono, nombre, fecha_nacimiento: fecha_nacimiento || null })
+      })
+      const data = await res.json()
+
+      if (data?.ok) {
+        localStorage.setItem('bp_cliente_telefono', clienteEncontradoTemp.telefono)
+        mostrarBannerCliente(nombre, clienteEncontradoTemp.telefono)
+        cerrarModalCuenta()
+        toast(`¡Listo, ${nombre}! Ya te vamos a reconocer la próxima vez`, 'ok')
+      } else {
+        toast(data?.error || 'Error al crear el perfil', 'danger')
+      }
+    }
 
     function setEntrega(tipo, el) {
       tipoEntrega = tipo

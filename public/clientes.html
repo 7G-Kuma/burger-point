@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Clientes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-card);
+    }
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .stat-value { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
+
+    .fila-clickeable { cursor: pointer; }
+
+    .chip-frecuente {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(232,131,42,0.15);
+      color: var(--accent);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .chip-cumple {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(76,175,125,0.15);
+      color: var(--ok);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .modal-bg {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-card { width: 100%; max-width: 380px; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span><span class="navbar-subtitle"> · Clientes</span></span>
+    <div id="nav-switcher"></div>
+    <div class="navbar-right">
+      <span class="navbar-role" id="nombre-usuario"></span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div>
+        <h1>Clientes</h1>
+        <p style="margin-top:4px;">Quién vuelve, cuánto pidió y cuándo cumple años — para conocerlos un poco más</p>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <div class="card">
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Teléfono</th>
+              <th>Pedidos</th>
+              <th>Gastado</th>
+              <th>Última visita</th>
+              <th>Cumpleaños</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-clientes">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR CLIENTE -->
+  <div class="modal-bg" id="modal-cliente">
+    <div class="card modal-card">
+      <div class="card-header">
+        <h3 id="modal-cliente-titulo">Editar cliente</h3>
+        <button onclick="cerrarModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div class="input-group mt-16">
+        <label>Nombre</label>
+        <input type="text" id="cli-nombre">
+      </div>
+      <div class="input-group mt-16">
+        <label>Teléfono</label>
+        <input type="text" id="cli-telefono" disabled style="opacity:0.6;">
+      </div>
+      <div class="input-group mt-16">
+        <label>Fecha de nacimiento</label>
+        <input type="date" id="cli-nacimiento">
+      </div>
+      <button class="btn btn-primary btn-full mt-16" onclick="guardarCliente()">Guardar</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    let clientes = []
+    let clienteEditando = null
+
+    window.addEventListener('load', () => {
+      if (!requireAuth(['propietario', 'encargado'], 'clientes')) return
+      renderNavSwitcher()
+      const usuario = getUsuario()
+      document.getElementById('nombre-usuario').textContent = usuario.nombre
+      cargarClientes()
+    })
+
+    // ¿El cumpleaños cae en los próximos 30 días? (ignora el año)
+    function diasHastaCumple(fechaNacimiento) {
+      if (!fechaNacimiento) return null
+      const hoy = new Date()
+      const nacimiento = new Date(fechaNacimiento + 'T00:00:00')
+      const cumpleEsteAno = new Date(hoy.getFullYear(), nacimiento.getMonth(), nacimiento.getDate())
+      if (cumpleEsteAno < new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())) {
+        cumpleEsteAno.setFullYear(hoy.getFullYear() + 1)
+      }
+      return Math.round((cumpleEsteAno - hoy) / 86400000)
+    }
+
+    async function cargarClientes() {
+      const data = await api('/api/clientes')
+      if (!data) return
+      clientes = data.clientes || []
+      renderStats()
+      renderTabla()
+    }
+
+    function renderStats() {
+      const total = clientes.length
+      const frecuentes = clientes.filter(c => c.pedidos >= 3).length
+      const cumpleEsteMes = clientes.filter(c => {
+        const dias = diasHastaCumple(c.fecha_nacimiento)
+        return dias !== null && dias <= 30
+      }).length
+      const gastadoTotal = clientes.reduce((s, c) => s + c.gastado, 0)
+
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card"><div class="stat-label">Clientes</div><div class="stat-value">${total}</div></div>
+        <div class="stat-card"><div class="stat-label">Frecuentes (3+ pedidos)</div><div class="stat-value text-accent">${frecuentes}</div></div>
+        <div class="stat-card"><div class="stat-label">Cumplen en 30 días</div><div class="stat-value text-ok">${cumpleEsteMes}</div></div>
+        <div class="stat-card"><div class="stat-label">Total gastado</div><div class="stat-value">$${gastadoTotal.toLocaleString('es-AR')}</div></div>
+      `
+    }
+
+    function renderTabla() {
+      const tbody = document.getElementById('tabla-clientes')
+      if (clientes.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px;">Todavía no hay clientes registrados</td></tr>`
+        return
+      }
+      tbody.innerHTML = clientes.map(c => {
+        const dias = diasHastaCumple(c.fecha_nacimiento)
+        const cumpleTexto = !c.fecha_nacimiento
+          ? '—'
+          : new Date(c.fecha_nacimiento + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+        return `
+        <tr class="fila-clickeable" onclick="abrirModal('${c.id}')">
+          <td>${c.nombre} ${c.pedidos >= 3 ? '<span class="chip-frecuente">Frecuente</span>' : ''}</td>
+          <td class="mono">${c.telefono}</td>
+          <td class="mono">${c.pedidos}</td>
+          <td class="mono">$${c.gastado.toLocaleString('es-AR')}</td>
+          <td style="color:var(--text-muted);font-size:12px;">${formatFecha(c.ultima_visita)}</td>
+          <td>${cumpleTexto} ${dias !== null && dias <= 30 ? `<span class="chip-cumple">🎂 en ${dias}d</span>` : ''}</td>
+        </tr>`
+      }).join('')
+    }
+
+    function abrirModal(id) {
+      const c = clientes.find(x => x.id === id)
+      if (!c) return
+      clienteEditando = id
+      document.getElementById('modal-cliente-titulo').textContent = 'Editar — ' + c.nombre
+      document.getElementById('cli-nombre').value = c.nombre
+      document.getElementById('cli-telefono').value = c.telefono
+      document.getElementById('cli-nacimiento').value = c.fecha_nacimiento || ''
+      document.getElementById('modal-cliente').style.display = 'flex'
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal-cliente').style.display = 'none'
+    }
+
+    async function guardarCliente() {
+      const nombre = document.getElementById('cli-nombre').value.trim()
+      const fecha_nacimiento = document.getElementById('cli-nacimiento').value
+
+      if (!nombre) { toast('Ingresá un nombre', 'warning'); return }
+
+      const data = await api(`/api/clientes/${clienteEditando}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ nombre, fecha_nacimiento: fecha_nacimiento || null })
+      })
+
+      if (data?.ok) {
+        toast('Cliente actualizado ✓', 'ok')
+        cerrarModal()
+        cargarClientes()
+      } else {
+        toast(data?.error || 'Error al guardar', 'danger')
+      }
+    }
+  </script>
+</body>
+</html>
