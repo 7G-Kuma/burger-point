@@ -286,6 +286,16 @@
     </div>
   </div>
 
+  <div class="modal-extras-bg" id="modal-tamano">
+    <div class="card modal-extras-card">
+      <div class="card-header">
+        <h3 id="tamano-modal-titulo">Elegí el tamaño</h3>
+        <button onclick="cerrarModalTamano()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div id="tamano-modal-lista"></div>
+    </div>
+  </div>
+
   <div class="cart-bar" id="cart-bar" onclick="scrollToCart()">
     <span class="info"><span class="count" id="cart-bar-count">0</span>Ver mi pedido</span>
     <span class="total" id="cart-bar-total">$0</span>
@@ -317,6 +327,31 @@
         .replace(/(^-|-$)/g, '')
     }
 
+    const TAMANOS_BEBIDA = ['500ml', '750ml', '1L']
+    let bebidasPorMarca = {}
+
+    // Separa las variantes de bebida (nombre "Marca 500ml/750ml/1L") en un solo
+    // cartel por marca, para que el menú no se llene de "Coca-Cola 500ml",
+    // "Coca-Cola 750ml", etc. — el tamaño se elige recién al agregar.
+    function agruparBebidas(lista) {
+      bebidasPorMarca = {}
+      const resto = []
+      lista.forEach(p => {
+        const tamano = TAMANOS_BEBIDA.find(t => p.nombre.endsWith(' ' + t))
+        if (!tamano) { resto.push(p); return }
+        const marca = p.nombre.slice(0, -(tamano.length + 1))
+        if (!bebidasPorMarca[marca]) bebidasPorMarca[marca] = []
+        bebidasPorMarca[marca].push({ ...p, tamano })
+      })
+      Object.values(bebidasPorMarca).forEach(variantes =>
+        variantes.sort((a, b) => TAMANOS_BEBIDA.indexOf(a.tamano) - TAMANOS_BEBIDA.indexOf(b.tamano))
+      )
+      const gruposBebida = Object.keys(bebidasPorMarca).map(marca => ({ esGrupoBebida: true, marca }))
+      return [...resto, ...gruposBebida].sort((a, b) =>
+        (a.nombre || a.marca).localeCompare(b.nombre || b.marca)
+      )
+    }
+
     async function cargarMenu() {
       const res = await fetch('/api/menu')
       const data = await res.json()
@@ -326,36 +361,94 @@
         grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">El menú no está disponible en este momento</div>`
         return
       }
-      grid.innerHTML = productos.map(p => {
-        const sinStock = p.disponible !== null && p.disponible <= 0
-        const bajoStock = !sinStock && p.disponible !== null && p.disponible <= 5
-        const img = `/img/productos/${slugify(p.nombre)}.jpg`
+      const items = agruparBebidas(productos)
+      grid.innerHTML = items.map(item => item.esGrupoBebida ? renderTarjetaBebida(item.marca) : renderTarjetaProducto(item)).join('')
+    }
+
+    function renderTarjetaProducto(p) {
+      const sinStock = p.disponible !== null && p.disponible <= 0
+      const bajoStock = !sinStock && p.disponible !== null && p.disponible <= 5
+      const img = `/img/productos/${slugify(p.nombre)}.jpg`
+      return `
+      <div class="producto-card ${sinStock ? 'sin-stock' : ''}">
+        <div class="producto-img">
+          <img src="${img}" alt="${p.nombre}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+          <div class="producto-img-fallback" style="display:none;">
+            <span class="icono">🍔</span>
+            <span class="texto">Foto próximamente</span>
+          </div>
+          ${sinStock ? '<span class="stock-chip">Agotado</span>' : ''}
+          ${p.descuento_porcentaje ? `<span class="chip-descuento">-${p.descuento_porcentaje}%</span>` : ''}
+        </div>
+        <div class="producto-body">
+          <div class="producto-head">
+            <span class="nombre">${p.nombre}</span>
+            <span class="precio">
+              ${p.descuento_porcentaje ? `<span class="precio-viejo">$${Number(p.precio).toLocaleString('es-AR')}</span><span class="precio-promo">$${Number(p.precio_final).toLocaleString('es-AR')}</span>` : `$${Number(p.precio).toLocaleString('es-AR')}`}
+            </span>
+          </div>
+          <p class="descripcion">${p.descripcion || ''}</p>
+          <div class="producto-footer">
+            <span class="stock ${bajoStock ? 'bajo' : ''}">${bajoStock ? `Quedan ${p.disponible}` : ''}</span>
+            <button class="btn btn-primary btn-add" onclick="agregarAlCarrito('${p.id}')">+ Agregar</button>
+          </div>
+        </div>
+      </div>`
+    }
+
+    function renderTarjetaBebida(marca) {
+      const variantes = bebidasPorMarca[marca]
+      const precios = variantes.map(v => Number(v.precio_final))
+      const todasSinStock = variantes.every(v => v.disponible !== null && v.disponible <= 0)
+      const img = `/img/productos/${slugify(marca)}.jpg`
+      return `
+      <div class="producto-card ${todasSinStock ? 'sin-stock' : ''}">
+        <div class="producto-img">
+          <img src="${img}" alt="${marca}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+          <div class="producto-img-fallback" style="display:none;">
+            <span class="icono">🥤</span>
+            <span class="texto">Foto próximamente</span>
+          </div>
+          ${todasSinStock ? '<span class="stock-chip">Agotado</span>' : ''}
+        </div>
+        <div class="producto-body">
+          <div class="producto-head">
+            <span class="nombre">${marca}</span>
+            <span class="precio">Desde $${Math.min(...precios).toLocaleString('es-AR')}</span>
+          </div>
+          <p class="descripcion">Elegí el tamaño: ${variantes.map(v => v.tamano).join(', ')}</p>
+          <div class="producto-footer">
+            <span class="stock"></span>
+            ${todasSinStock
+              ? ''
+              : `<button class="btn btn-primary btn-add" onclick="abrirModalTamano('${marca.replace(/'/g, "\\'")}')">+ Agregar</button>`}
+          </div>
+        </div>
+      </div>`
+    }
+
+    function abrirModalTamano(marca) {
+      const variantes = bebidasPorMarca[marca]
+      document.getElementById('tamano-modal-titulo').textContent = marca
+      document.getElementById('tamano-modal-lista').innerHTML = variantes.map(v => {
+        const sinStock = v.disponible !== null && v.disponible <= 0
         return `
-        <div class="producto-card ${sinStock ? 'sin-stock' : ''}">
-          <div class="producto-img">
-            <img src="${img}" alt="${p.nombre}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-            <div class="producto-img-fallback" style="display:none;">
-              <span class="icono">🍔</span>
-              <span class="texto">Foto próximamente</span>
-            </div>
-            ${sinStock ? '<span class="stock-chip">Agotado</span>' : ''}
-            ${p.descuento_porcentaje ? `<span class="chip-descuento">-${p.descuento_porcentaje}%</span>` : ''}
-          </div>
-          <div class="producto-body">
-            <div class="producto-head">
-              <span class="nombre">${p.nombre}</span>
-              <span class="precio">
-                ${p.descuento_porcentaje ? `<span class="precio-viejo">$${Number(p.precio).toLocaleString('es-AR')}</span><span class="precio-promo">$${Number(p.precio_final).toLocaleString('es-AR')}</span>` : `$${Number(p.precio).toLocaleString('es-AR')}`}
-              </span>
-            </div>
-            <p class="descripcion">${p.descripcion || ''}</p>
-            <div class="producto-footer">
-              <span class="stock ${bajoStock ? 'bajo' : ''}">${bajoStock ? `Quedan ${p.disponible}` : ''}</span>
-              <button class="btn btn-primary btn-add" onclick="agregarAlCarrito('${p.id}')">+ Agregar</button>
-            </div>
-          </div>
-        </div>`
+        <button class="extra-opcion" style="width:100%;background:none;border:none;text-align:left;color:var(--text);${sinStock ? 'opacity:.4;' : 'cursor:pointer;'}"
+          ${sinStock ? 'disabled' : `onclick="elegirTamano('${v.id}')"`}>
+          <span class="izq">${v.tamano}${sinStock ? ' — sin stock' : ''}</span>
+          <span class="precio-extra pago">$${Number(v.precio_final).toLocaleString('es-AR')}</span>
+        </button>`
       }).join('')
+      document.getElementById('modal-tamano').style.display = 'flex'
+    }
+
+    function cerrarModalTamano() {
+      document.getElementById('modal-tamano').style.display = 'none'
+    }
+
+    function elegirTamano(productoId) {
+      cerrarModalTamano()
+      agregarAlCarritoConExtras(productoId, [])
     }
 
     let productoParaExtras = null
