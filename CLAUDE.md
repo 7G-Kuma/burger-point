@@ -6,9 +6,9 @@ Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreS
 
 ## Estado general (al 2026-09-10)
 
-Las 6 fases del plan original (configuración, login+roles, panel, pedidos/caja, cocina+reparto, cobros+deploy) están completas y en producción desde el 2026-09-03. Desde entonces se agregó bastante más de lo planeado originalmente — stock visible, rediseño visual + logo, seguimiento del cliente, registro/historial admin, factura numerada persistente, inventario con ingresos, menú digital de autoservicio con auto-notificación a caja, contenido real (descripciones + fotos) del menú, un rol de encargado real con permisos por sección y notificación de actividad al propietario, precios editables + promociones con descuento automático, un pulido general de la experiencia móvil, y personalización de productos (extras) + variantes de bebida por marca y tamaño. Cada uno tiene su propia sección fechada más abajo, en orden cronológico — es la forma más confiable de saber qué existe y por qué.
+Las 6 fases del plan original (configuración, login+roles, panel, pedidos/caja, cocina+reparto, cobros+deploy) están completas y en producción desde el 2026-09-03. Desde entonces se agregó bastante más de lo planeado originalmente — stock visible, rediseño visual + logo, seguimiento del cliente, registro/historial admin, factura numerada persistente, inventario con ingresos, menú digital de autoservicio con auto-notificación a caja, contenido real (descripciones + fotos) del menú, un rol de encargado real con permisos por sección y notificación de actividad al propietario, precios editables + promociones con descuento automático, un pulido general de la experiencia móvil, personalización de productos (extras) + variantes de bebida por marca y tamaño, y cuentas de cliente livianas + panel de fidelización. Cada uno tiene su propia sección fechada más abajo, en orden cronológico — es la forma más confiable de saber qué existe y por qué.
 
-**Para retomar el trabajo**: el usuario pidió una ronda nueva de mejoras el 2026-09-10 (ver "Pendiente — ronda de mejoras 2026-09-10" al final del documento) — hechos: pulido móvil, separar el menú digital del login de staff, y personalización de productos + variantes de bebida. Queda un solo frente: **cuentas de cliente + fidelización** — es lo próximo, salvo que el usuario pida otra cosa.
+**Para retomar el trabajo**: la ronda de mejoras que el usuario pidió el 2026-09-10 está completa (los 5 frentes: pulido móvil, separar el menú digital del login de staff, personalización de productos + variantes de bebida, y cuentas de cliente + fidelización — ver las secciones fechadas de ese día más abajo). No queda ningún pendiente conocido — para el próximo trabajo hay que preguntarle al usuario qué necesita.
 
 Probado en vivo el 2026-09-03: caja crea pedido → cobro por transferencia queda pendiente → cocina prepara y marca listo → reparto verifica la transferencia y marca entregado → panel refleja ventas/cobrado/alertas correctamente. Repetido con la `service_role` key activa y confirmado que el descuento de stock ahora funciona (`Queso azul` 2.00→1.00 y `Carne (medallón)` 80.00→79.00 al confirmar un Blue Cheese).
 
@@ -31,6 +31,7 @@ rutas/
   insumos.js         # GET /api/insumos (+ /movimientos), POST /:id/ingreso — inventario, solo propietario/encargado
   menu.js            # GET /api/menu, POST /api/menu/pedido — PÚBLICO, sin auth, menú digital de autoservicio
   extras.js          # GET/POST/PATCH/DELETE /api/extras — aderezos/agregados por producto, solo propietario/encargado
+  clientes.js        # GET /buscar + POST (públicos, para el menú digital) + GET/PATCH admin + exporta upsertCliente()
   permisos.js        # GET /api/permisos (cualquier logueado), PATCH /api/permisos/:seccion (solo propietario)
   actividad.js       # GET /api/actividad (solo propietario) + exporta registrarActividad(), usada por otras rutas
   requireSeccion.js  # middleware factory — bloquea al encargado si el propietario no le habilitó esa sección
@@ -46,13 +47,16 @@ public/
   registro.html      # propietario/encargado — historial completo, filtros, detalle y factura de cada pedido
   inventario.html    # propietario/encargado — stock por insumo, registrar ingresos, historial de movimientos
   permisos.html      # solo propietario — habilita/bloquea qué secciones puede ver el encargado
-  productos.html     # propietario/encargado — editar precios/visibilidad del menú y crear promociones
+  productos.html     # propietario/encargado — editar precios/visibilidad del menú, promociones y extras
+  clientes.html      # propietario/encargado — registro de clientes, frecuencia, gastado y cumpleaños
 .claude/launch.json  # config para levantar el servidor desde el preview del editor
 ```
 
 ## Base de datos (Supabase, proyecto wvarebdeatfdlmeojzvq)
 
-Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`, `facturas`, `movimientos_stock`, `permisos_encargado`, `actividad`, `promociones`, `promocion_productos`, `extras`, `producto_extras`, `pedido_item_extras`. **RLS activado en las 17** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
+Tablas: `usuarios`, `productos`, `insumos`, `pedidos`, `pedido_items`, `cobros`, `incidencias`, `producto_insumos`, `facturas`, `movimientos_stock`, `permisos_encargado`, `actividad`, `promociones`, `promocion_productos`, `extras`, `producto_extras`, `pedido_item_extras`, `clientes`. **RLS activado en las 18** (sin políticas — deniega anon/authenticated, `service_role` bypasea por diseño).
+
+`clientes`: `telefono` (único, es el identificador — no hay contraseña), `nombre`, `fecha_nacimiento` (nullable), `ultima_visita`. `pedidos.cliente_id` referencia esta tabla (`ON DELETE SET NULL`). Se arma solo: `upsertCliente()` en `rutas/clientes.js` se llama desde `POST /api/menu/pedido` en cada pedido online y crea/actualiza el cliente por teléfono, exista o no un perfil explícito armado desde el login del menú.
 
 `permisos_encargado`: una fila por sección (`panel`, `caja`, `cocina`, `reparto`, `inventario`, `registro`, `productos`) con `permitido boolean`. `actividad`: `usuario_id`, `rol`, `accion` (texto libre, ej. `Creó el pedido #24`), `creado_en` — solo se escribe cuando el actor es `encargado`.
 
@@ -175,11 +179,15 @@ Con esto se completaron las seis cosas grandes que el usuario pidió de una: inv
 - Probado de punta a punta en local y en producción: pedido con extras (verificado el precio calculado server-side, no el que arma el cliente) + una bebida nueva, extras visibles en cocina/caja/registro/factura PDF, y el stock de la bebida se descontó correctamente al confirmar el cobro. Datos de prueba limpiados después.
 - **Corrección de UX pedida por el usuario el mismo día**: mostrar las 15 variantes como 15 tarjetas separadas en el menú lo llenaba de "Coca-Cola 500ml", "Coca-Cola 750ml", etc. — se agrupan en `menu.html` (`agruparBebidas()`, detecta el patrón `"Marca 500ml/750ml/1L"` en el nombre) en un solo cartel por marca ("Coca-Cola", "Coca-Cola Zero", "Sprite", "Fanta", "Pepsi") con "Desde $X"; al tocar "+ Agregar" se abre un selector de tamaño con el precio de cada uno y elegir uno agrega esa variante puntual. **Los 15 productos individuales en la base no cambiaron** — siguen siendo la forma en que se factura, se ve en cocina/caja/registro y se controla el stock; esto fue solo un cambio de presentación en el menú del cliente.
 
-## Pendiente — ronda de mejoras 2026-09-10 (no implementado todavía)
+## Cuentas de cliente livianas + panel de fidelización (2026-09-10)
 
-El usuario pidió una tanda nueva de mejoras en un solo mensaje largo; se separó en frentes independientes y se acordó ir de a uno. **Hechos**: pulido móvil, separar el menú digital del login de staff, personalización de productos + variantes de bebida (todo arriba). **Queda uno solo**:
+- **Sin contraseña, identificación por teléfono** (decisión tomada explícitamente por el usuario): no hay "login" real de cliente, solo un perfil liviano. `rutas/clientes.js` expone `GET /api/clientes/buscar?telefono=` y `POST /api/clientes` **sin auth** (son para el menú público) además del CRUD admin (`GET`/`PATCH`, con `requireSeccion('clientes')`, permiso nuevo en `permisos_encargado`).
+- **El registro se arma solo con el uso**: cada pedido online (`POST /api/menu/pedido`) llama a `upsertCliente()`, que crea o actualiza el cliente por teléfono automáticamente — no depende de que el cliente use ningún flujo de "cuenta" explícito. Esto es importante: aunque nadie toque "Mi cuenta" en el menú, el historial de clientes igual se va completando.
+- **"Mi cuenta" en `menu.html`** (opcional, para el cliente): botón en el header que pide el teléfono — si ya existe lo reconoce y saluda, si es nuevo pide nombre y **fecha de nacimiento** (opcional, aclarado en la UI que es "para mandarte algo especial el día de tu cumple"). El teléfono queda en `localStorage` (`bp_cliente_telefono`) para reconocerlo solo en la próxima visita al mismo dispositivo, precargando nombre/teléfono en el formulario de pedido. "No soy yo" limpia el `localStorage`.
+- **`clientes.html`** (propietario/encargado): tabla con pedidos, total gastado y última visita por cliente (calculado en el servidor recorriendo `pedidos`+`pedido_items` de cada uno, no hay contadores cacheados), chip "Frecuente" desde 3 pedidos, y aviso de cumpleaños dentro de los próximos 30 días. **Importante**: esto es un tablero de consulta, no manda nada solo — no hay integración de WhatsApp/SMS/email en el proyecto, así que la idea es que el propietario vea la lista y contacte a mano. Si en algún momento se quiere automatizar el envío hay que sumar un servicio externo.
+- Probado de punta a punta en local y producción: perfil nuevo con fecha de nacimiento → reconocimiento automático al volver a entrar (sin loguearse de nuevo) → pedido queda linkeado al cliente en la base → aparece correctamente en el panel de Clientes con sus stats.
 
-1. **Cuentas de cliente + fidelización**: el cliente se identifica en el menú digital con teléfono + nombre (decisión ya tomada: identificación liviana, sin contraseña — no una cuenta con login real). El objetivo es reconocerlo la próxima vez que pida y poder armar promociones dirigidas (cumpleaños, San Valentín, etc. — el usuario mencionó específicamente detectar "si una persona está pidiendo demasiado de un solo lugar" como señal de cliente frecuente). Falta diseñar: tabla `clientes` (teléfono como identificador único probablemente), cómo se relaciona con `pedidos` (hoy `cliente_nombre`/`cliente_telefono`/`cliente_direccion` son campos sueltos en `pedidos`, no hay tabla de clientes), y qué dispara una promo de cumpleaños (¿necesita fecha de nacimiento en el registro?).
+Con esto se completó la ronda de 5 mejoras que el usuario pidió el 2026-09-10. No queda ningún pendiente conocido.
 
 ## Notas técnicas conocidas
 
