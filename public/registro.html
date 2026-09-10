@@ -289,7 +289,10 @@
         <div class="detalle-items">
           ${p.pedido_items?.map(i => `
             <div class="detalle-item-row">
-              <span>${i.cantidad}x ${i.productos?.nombre}${i.observacion ? `<div class="obs">⚠ ${i.observacion}</div>` : ''}</span>
+              <span>${i.cantidad}x ${i.productos?.nombre}
+                ${i.pedido_item_extras?.length ? `<div class="obs" style="color:var(--ok);">+ ${i.pedido_item_extras.map(e => e.nombre).join(', ')}</div>` : ''}
+                ${i.observacion ? `<div class="obs">⚠ ${i.observacion}</div>` : ''}
+              </span>
               <span class="mono">$${(i.cantidad * i.precio_unitario).toLocaleString('es-AR')}</span>
             </div>
           `).join('') || '<p>Sin items</p>'}

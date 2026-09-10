@@ -533,7 +533,9 @@
     </div>` : ''
   document.getElementById('modal-items').innerHTML = cliente +
     (pedido.pedido_items?.map(i =>
-      `${i.cantidad}x ${i.productos?.nombre}${i.observacion ? ' <em>('+i.observacion+')</em>' : ''}`
+      `${i.cantidad}x ${i.productos?.nombre}` +
+      (i.pedido_item_extras?.length ? ` <span style="color:var(--ok);">+ ${i.pedido_item_extras.map(e => e.nombre).join(', ')}</span>` : '') +
+      (i.observacion ? ` <em>(${i.observacion})</em>` : '')
     ).join('<br>') || '—')
 
   const acciones = document.getElementById('modal-acciones')

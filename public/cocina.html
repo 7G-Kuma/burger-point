@@ -83,6 +83,11 @@
       color: var(--accent2);
       margin-top: 2px;
     }
+    .item-extras {
+      font-size: 12px;
+      color: var(--ok);
+      margin-top: 2px;
+    }
     .pedido-obs-general {
       margin: 0 16px 12px;
       background: rgba(245,200,66,0.08);
@@ -263,6 +268,7 @@
                   <span class="item-qty">${i.cantidad}x</span>
                   <div>
                     <div class="item-nombre">${i.productos?.nombre || '—'}</div>
+                    ${i.pedido_item_extras?.length ? `<div class="item-extras">+ ${i.pedido_item_extras.map(e => e.nombre).join(', ')}</div>` : ''}
                     ${i.observacion ? `<div class="item-obs">⚠ ${i.observacion}</div>` : ''}
                   </div>
                 </div>

@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('productos')
-    .select('id, nombre, precio, descripcion')
+    .select('id, nombre, precio, descripcion, producto_extras ( extras ( id, nombre, precio, activo ) )')
     .eq('activo', true)
     .order('nombre')
 
@@ -20,8 +20,10 @@ router.get('/', async (req, res) => {
   const conPromos = await aplicarPromociones(supabase, data)
   const productos = conPromos.map(p => ({
     ...p,
-    disponible: disponibilidad[p.id] ?? null
+    disponible: disponibilidad[p.id] ?? null,
+    extras: p.producto_extras?.map(pe => pe.extras).filter(e => e?.activo) || []
   }))
+  productos.forEach(p => delete p.producto_extras)
 
   res.json({ productos })
 })
@@ -53,10 +55,11 @@ router.post('/pedido', async (req, res) => {
     })
   }
 
-  // El precio se toma del producto en el servidor — nunca del cliente, para que no se pueda falsear
+  // El precio se toma del producto (+ extras elegidos) en el servidor — nunca del
+  // cliente, para que no se pueda falsear
   const { data: productosRaw, error: errorProductos } = await supabase
     .from('productos')
-    .select('id, precio, activo')
+    .select('id, precio, activo, producto_extras ( extras ( id, nombre, precio, activo ) )')
     .in('id', items.map(i => i.producto_id))
 
   if (errorProductos) return res.status(500).json({ error: errorProductos.message })
@@ -85,19 +88,49 @@ router.post('/pedido', async (req, res) => {
 
   if (errorPedido) return res.status(500).json({ error: errorPedido.message })
 
-  const itemsParaInsertar = items.map(i => {
+  // Solo se aceptan extras que el producto realmente ofrece — cualquier otro
+  // extra_id mandado por el cliente se ignora en vez de romper el pedido
+  const extrasElegidosPorItem = items.map(i => {
     const producto = productos.find(p => p.id === i.producto_id)
+    const disponibles = producto.producto_extras?.map(pe => pe.extras).filter(e => e?.activo) || []
+    const elegidos = (i.extra_ids || [])
+      .map(id => disponibles.find(e => e.id === id))
+      .filter(Boolean)
+    return { producto, elegidos }
+  })
+
+  const itemsParaInsertar = items.map((i, idx) => {
+    const { producto, elegidos } = extrasElegidosPorItem[idx]
+    const extrasTotal = elegidos.reduce((s, e) => s + Number(e.precio), 0)
     return {
       pedido_id: pedido.id,
       producto_id: i.producto_id,
       cantidad: i.cantidad,
-      precio_unitario: producto.precio_final,
+      precio_unitario: Number(producto.precio_final) + extrasTotal,
       observacion: i.observacion || null
     }
   })
 
-  const { error: errorItems } = await supabase.from('pedido_items').insert(itemsParaInsertar)
+  const { data: itemsInsertados, error: errorItems } = await supabase
+    .from('pedido_items')
+    .insert(itemsParaInsertar)
+    .select()
+
   if (errorItems) return res.status(500).json({ error: errorItems.message })
+
+  const filasExtras = itemsInsertados.flatMap((item, idx) =>
+    extrasElegidosPorItem[idx].elegidos.map(e => ({
+      pedido_item_id: item.id,
+      extra_id: e.id,
+      nombre: e.nombre,
+      precio: e.precio
+    }))
+  )
+
+  if (filasExtras.length > 0) {
+    const { error: errorExtras } = await supabase.from('pedido_item_extras').insert(filasExtras)
+    if (errorExtras) return res.status(500).json({ error: errorExtras.message })
+  }
 
   res.json({ ok: true, pedido })
 })

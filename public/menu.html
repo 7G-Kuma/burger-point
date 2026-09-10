@@ -143,6 +143,35 @@
     .confirmacion { text-align: center; padding: 20px 0; }
     .confirmacion .num { font-family: var(--font-display); font-size: 40px; font-weight: 700; color: var(--accent); margin: 12px 0; }
 
+    .carrito-item .extras-elegidos { font-size: 11px; color: var(--ok); margin-top: 2px; }
+
+    .modal-extras-bg {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-extras-card { width: 100%; max-width: 380px; max-height: 85vh; overflow-y: auto; }
+    .extra-opcion {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .extra-opcion:last-child { border-bottom: none; }
+    .extra-opcion .izq { display: flex; align-items: center; gap: 10px; }
+    .extra-opcion input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    .extra-opcion .precio-extra { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+    .extra-opcion .precio-extra.pago { color: var(--accent); }
+    .extra-opcion .precio-extra.gratis { color: var(--text-muted); }
+
     .cart-bar {
       display: none;
       position: fixed;
@@ -245,6 +274,18 @@
     </div>
   </div>
 
+  <div class="modal-extras-bg" id="modal-extras">
+    <div class="card modal-extras-card">
+      <div class="card-header">
+        <h3 id="extras-modal-titulo">Personalizá tu pedido</h3>
+        <button onclick="cerrarModalExtras()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <p style="margin-bottom:8px;">Elegí lo que quieras agregar o sacar — es opcional</p>
+      <div id="extras-modal-lista"></div>
+      <button class="btn btn-primary btn-full mt-16" onclick="confirmarAgregarConExtras()">Agregar al carrito</button>
+    </div>
+  </div>
+
   <div class="cart-bar" id="cart-bar" onclick="scrollToCart()">
     <span class="info"><span class="count" id="cart-bar-count">0</span>Ver mi pedido</span>
     <span class="total" id="cart-bar-total">$0</span>
@@ -317,34 +358,87 @@
       }).join('')
     }
 
+    let productoParaExtras = null
+
     function agregarAlCarrito(productoId) {
       const prod = productos.find(p => p.id === productoId)
       if (!prod) return
-      const existe = carrito.find(i => i.producto_id === productoId)
-      const enCarrito = existe ? existe.cantidad : 0
+      if (prod.extras && prod.extras.length > 0) {
+        abrirModalExtras(productoId)
+        return
+      }
+      agregarAlCarritoConExtras(productoId, [])
+    }
 
-      if (prod.disponible !== null && enCarrito + 1 > prod.disponible) {
+    function abrirModalExtras(productoId) {
+      const prod = productos.find(p => p.id === productoId)
+      if (!prod) return
+      productoParaExtras = productoId
+      document.getElementById('extras-modal-titulo').textContent = prod.nombre
+      document.getElementById('extras-modal-lista').innerHTML = prod.extras.map(e => `
+        <label class="extra-opcion">
+          <span class="izq"><input type="checkbox" value="${e.id}"> ${e.nombre}</span>
+          <span class="precio-extra ${Number(e.precio) > 0 ? 'pago' : 'gratis'}">${Number(e.precio) > 0 ? '+$' + Number(e.precio).toLocaleString('es-AR') : 'Gratis'}</span>
+        </label>
+      `).join('')
+      document.getElementById('modal-extras').style.display = 'flex'
+    }
+
+    function cerrarModalExtras() {
+      document.getElementById('modal-extras').style.display = 'none'
+      productoParaExtras = null
+    }
+
+    function confirmarAgregarConExtras() {
+      const extraIds = Array.from(document.querySelectorAll('#extras-modal-lista input:checked')).map(c => c.value)
+      agregarAlCarritoConExtras(productoParaExtras, extraIds)
+      cerrarModalExtras()
+    }
+
+    function agregarAlCarritoConExtras(productoId, extraIds) {
+      const prod = productos.find(p => p.id === productoId)
+      if (!prod) return
+
+      const totalEnCarrito = carrito.filter(i => i.producto_id === productoId).reduce((s, i) => s + i.cantidad, 0)
+      if (prod.disponible !== null && totalEnCarrito + 1 > prod.disponible) {
         toast(`No hay más stock de "${prod.nombre}"`, 'warning')
         return
       }
 
-      if (existe) existe.cantidad++
-      else carrito.push({ producto_id: productoId, nombre: prod.nombre, precio_unitario: prod.precio_final, cantidad: 1 })
+      const extrasElegidos = (prod.extras || []).filter(e => extraIds.includes(e.id))
+      const extraPrecio = extrasElegidos.reduce((s, e) => s + Number(e.precio), 0)
+      const key = productoId + '|' + [...extraIds].sort().join(',')
+
+      const existe = carrito.find(i => i.key === key)
+      if (existe) {
+        existe.cantidad++
+      } else {
+        carrito.push({
+          key,
+          producto_id: productoId,
+          nombre: prod.nombre,
+          precio_unitario: Number(prod.precio_final) + extraPrecio,
+          cantidad: 1,
+          extra_ids: extraIds,
+          extras_nombres: extrasElegidos.map(e => e.nombre)
+        })
+      }
       renderCarrito()
     }
 
-    function cambiarCantidad(productoId, delta) {
-      const item = carrito.find(i => i.producto_id === productoId)
+    function cambiarCantidad(key, delta) {
+      const item = carrito.find(i => i.key === key)
       if (!item) return
       if (delta > 0) {
-        const prod = productos.find(p => p.id === productoId)
-        if (prod?.disponible !== null && item.cantidad + delta > prod.disponible) {
+        const prod = productos.find(p => p.id === item.producto_id)
+        const totalEnCarrito = carrito.filter(i => i.producto_id === item.producto_id).reduce((s, i) => s + i.cantidad, 0)
+        if (prod?.disponible !== null && totalEnCarrito + delta > prod.disponible) {
           toast(`No hay más stock de "${prod.nombre}"`, 'warning')
           return
         }
       }
       item.cantidad += delta
-      if (item.cantidad <= 0) carrito = carrito.filter(i => i.producto_id !== productoId)
+      if (item.cantidad <= 0) carrito = carrito.filter(i => i.key !== key)
       renderCarrito()
     }
 
@@ -366,10 +460,10 @@
       }
       cont.innerHTML = carrito.map(i => `
         <div class="carrito-item">
-          <span class="nombre">${i.nombre}</span>
-          <button class="qty-btn" onclick="cambiarCantidad('${i.producto_id}', -1)">−</button>
+          <span class="nombre">${i.nombre}${i.extras_nombres?.length ? `<div class="extras-elegidos">+ ${i.extras_nombres.join(', ')}</div>` : ''}</span>
+          <button class="qty-btn" onclick="cambiarCantidad('${i.key}', -1)">−</button>
           <span style="font-size:14px;font-weight:600;width:16px;text-align:center;">${i.cantidad}</span>
-          <button class="qty-btn" onclick="cambiarCantidad('${i.producto_id}', 1)">+</button>
+          <button class="qty-btn" onclick="cambiarCantidad('${i.key}', 1)">+</button>
           <span class="subtotal">$${(i.cantidad * i.precio_unitario).toLocaleString('es-AR')}</span>
         </div>
       `).join('')
@@ -407,7 +501,7 @@
           cliente_telefono: telefono,
           cliente_direccion: direccion,
           observaciones: document.getElementById('observaciones').value,
-          items: carrito.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad }))
+          items: carrito.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, extra_ids: i.extra_ids || [] }))
         })
       })
       const data = await res.json()

@@ -28,7 +28,7 @@ router.get('/', auth, requireSeccion('registro'), async (req, res) => {
       id, numero_pedido, canal, estado, observaciones, creado_en, actualizado_en,
       cliente_nombre, cliente_telefono, cliente_direccion,
       usuarios ( nombre ),
-      pedido_items ( id, cantidad, precio_unitario, observacion, productos ( nombre ) ),
+      pedido_items ( id, cantidad, precio_unitario, observacion, productos ( nombre ), pedido_item_extras ( nombre, precio ) ),
       cobros ( id, monto, estado, metodo, creado_en ),
       incidencias ( id, tipo, descripcion, creado_en ),
       facturas ( numero_factura )

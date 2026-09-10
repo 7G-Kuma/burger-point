@@ -140,6 +140,7 @@
     <div class="tabs">
       <div class="tab-btn active" onclick="setTab('precios', this)">Precios</div>
       <div class="tab-btn" onclick="setTab('promos', this)">Promociones</div>
+      <div class="tab-btn" onclick="setTab('extras', this)">Extras</div>
     </div>
 
     <!-- PRECIOS -->
@@ -174,6 +175,17 @@
         <button class="btn btn-primary" onclick="abrirModalPromo()" style="font-size:13px;">+ Nueva promoción</button>
       </div>
       <div id="lista-promos">
+        <div style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- EXTRAS -->
+    <div class="tab-panel" id="panel-extras">
+      <div class="page-header" style="margin-bottom:12px;">
+        <div><p style="font-size:12px;">Aderezos, agregados y "sin algo" que el cliente puede elegir en el menú digital</p></div>
+        <button class="btn btn-primary" onclick="abrirModalExtra()" style="font-size:13px;">+ Nuevo extra</button>
+      </div>
+      <div id="lista-extras">
         <div style="text-align:center;color:var(--text-muted);padding:32px;">Cargando...</div>
       </div>
     </div>
@@ -241,12 +253,37 @@
     </div>
   </div>
 
+  <!-- MODAL EXTRA -->
+  <div class="modal-bg" id="modal-extra">
+    <div class="card modal-card">
+      <div class="card-header">
+        <h3 id="modal-extra-titulo">Nuevo extra</h3>
+        <button onclick="cerrarModales()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <div class="input-group mt-16">
+        <label>Nombre</label>
+        <input type="text" id="extra-nombre" placeholder="Ej: Extra bacon">
+      </div>
+      <div class="input-group mt-16">
+        <label>Precio (0 = gratis)</label>
+        <input type="number" id="extra-precio" min="0" step="1" placeholder="0">
+      </div>
+      <div class="input-group mt-16">
+        <label>Productos donde se puede elegir</label>
+        <div class="checklist-productos" id="extra-productos-checklist"></div>
+      </div>
+      <button class="btn btn-primary btn-full mt-16" onclick="guardarExtra()" id="btn-guardar-extra">Crear extra</button>
+    </div>
+  </div>
+
   <div id="toast"></div>
   <script src="/app.js"></script>
   <script>
     let productos = []
     let promos = []
+    let extras = []
     let productoEditando = null
+    let extraEditando = null
 
     window.addEventListener('load', () => {
       if (!requireAuth(['propietario', 'encargado'], 'productos')) return
@@ -264,7 +301,7 @@
     }
 
     async function cargarTodo() {
-      await Promise.all([cargarProductos(), cargarPromos()])
+      await Promise.all([cargarProductos(), cargarPromos(), cargarExtras()])
     }
 
     async function cargarProductos() {
@@ -462,9 +499,118 @@
       }
     }
 
+    async function cargarExtras() {
+      const data = await api('/api/extras')
+      if (!data) return
+      extras = data.extras || []
+      renderExtras()
+    }
+
+    function renderExtras() {
+      const cont = document.getElementById('lista-extras')
+      if (extras.length === 0) {
+        cont.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:32px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">Todavía no creaste ningún extra</div>`
+        return
+      }
+      cont.innerHTML = extras.map(e => {
+        const nombresProductos = e.producto_extras?.map(pe => pe.productos?.nombre).filter(Boolean).join(', ') || '—'
+        return `
+          <div class="promo-card ${e.activo ? '' : 'inactiva'}">
+            <div class="promo-head">
+              <span class="promo-nombre">${e.nombre}</span>
+              <span class="promo-pct">${Number(e.precio) > 0 ? '+$' + Number(e.precio).toLocaleString('es-AR') : 'Gratis'}</span>
+            </div>
+            <div class="promo-productos">🍔 ${nombresProductos}</div>
+            <div class="promo-acciones">
+              <label class="switch">
+                <input type="checkbox" ${e.activo ? 'checked' : ''} onchange="toggleExtra('${e.id}', this.checked)">
+                <span class="slider"></span>
+              </label>
+              <span style="font-size:12px;color:var(--text-muted);">${e.activo ? 'Habilitado' : 'Deshabilitado'}</span>
+              <button class="btn btn-secondary" style="font-size:12px;padding:5px 10px;" onclick="abrirModalExtra('${e.id}')">✎ Editar</button>
+              <button class="btn btn-danger" style="font-size:12px;padding:5px 10px;" onclick="borrarExtra('${e.id}', '${e.nombre.replace(/'/g, "\\'")}')">Eliminar</button>
+            </div>
+          </div>`
+      }).join('')
+    }
+
+    function checklistProductosHTML(seleccionados) {
+      return productos
+        .filter(p => p.activo)
+        .map(p => `
+          <label><input type="checkbox" value="${p.id}" ${seleccionados?.has(p.id) ? 'checked' : ''}> ${p.nombre}</label>
+        `).join('') || '<p style="color:var(--text-muted);font-size:12px;">No hay productos activos</p>'
+    }
+
+    function abrirModalExtra(id) {
+      extraEditando = id || null
+      if (id) {
+        const e = extras.find(x => x.id === id)
+        document.getElementById('modal-extra-titulo').textContent = 'Editar — ' + e.nombre
+        document.getElementById('extra-nombre').value = e.nombre
+        document.getElementById('extra-precio').value = e.precio
+        document.getElementById('btn-guardar-extra').textContent = 'Guardar cambios'
+        const seleccionados = new Set(e.producto_extras?.map(pe => pe.producto_id) || [])
+        document.getElementById('extra-productos-checklist').innerHTML = checklistProductosHTML(seleccionados)
+      } else {
+        document.getElementById('modal-extra-titulo').textContent = 'Nuevo extra'
+        document.getElementById('extra-nombre').value = ''
+        document.getElementById('extra-precio').value = ''
+        document.getElementById('btn-guardar-extra').textContent = 'Crear extra'
+        document.getElementById('extra-productos-checklist').innerHTML = checklistProductosHTML()
+      }
+      document.getElementById('modal-extra').style.display = 'flex'
+    }
+
+    async function guardarExtra() {
+      const nombre = document.getElementById('extra-nombre').value.trim()
+      const precioInput = document.getElementById('extra-precio').value
+      const precio = precioInput === '' ? 0 : Number(precioInput)
+      const producto_ids = Array.from(document.querySelectorAll('#extra-productos-checklist input:checked')).map(c => c.value)
+
+      if (!nombre) { toast('Ingresá un nombre para el extra', 'warning'); return }
+      if (precio < 0) { toast('El precio no puede ser negativo', 'warning'); return }
+      if (producto_ids.length === 0) { toast('Elegí al menos un producto', 'warning'); return }
+
+      const data = extraEditando
+        ? await api(`/api/extras/${extraEditando}`, { method: 'PATCH', body: JSON.stringify({ nombre, precio, producto_ids }) })
+        : await api('/api/extras', { method: 'POST', body: JSON.stringify({ nombre, precio, producto_ids }) })
+
+      if (data?.ok) {
+        toast('Extra guardado ✓', 'ok')
+        cerrarModales()
+        cargarExtras()
+      } else {
+        toast(data?.error || 'Error al guardar el extra', 'danger')
+      }
+    }
+
+    async function toggleExtra(id, activo) {
+      const data = await api(`/api/extras/${id}`, { method: 'PATCH', body: JSON.stringify({ activo }) })
+      if (data?.ok) {
+        toast(activo ? 'Extra activado' : 'Extra desactivado', 'ok')
+        cargarExtras()
+      } else {
+        toast(data?.error || 'Error al actualizar', 'danger')
+        cargarExtras()
+      }
+    }
+
+    async function borrarExtra(id, nombre) {
+      if (!confirm(`¿Eliminar el extra "${nombre}"?`)) return
+      const data = await api(`/api/extras/${id}`, { method: 'DELETE' })
+      if (data?.ok) {
+        toast('Extra eliminado', 'ok')
+        cargarExtras()
+      } else {
+        toast(data?.error || 'Error al eliminar', 'danger')
+      }
+    }
+
     function cerrarModales() {
       document.getElementById('modal-producto').style.display = 'none'
       document.getElementById('modal-promo').style.display = 'none'
+      document.getElementById('modal-extra').style.display = 'none'
     }
   </script>
 </body>

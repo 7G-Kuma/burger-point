@@ -34,7 +34,8 @@ router.get('/', auth, async (req, res) => {
       cliente_nombre, cliente_telefono, cliente_direccion,
       pedido_items (
         cantidad, precio_unitario, observacion,
-        productos ( nombre )
+        productos ( nombre ),
+        pedido_item_extras ( nombre, precio )
       ),
       cobros ( id, monto, estado, metodo )
     `)
@@ -64,7 +65,8 @@ router.get('/:id', auth, async (req, res) => {
       cliente_nombre, cliente_telefono, cliente_direccion,
       pedido_items (
         id, cantidad, precio_unitario, observacion,
-        productos ( id, nombre, precio )
+        productos ( id, nombre, precio ),
+        pedido_item_extras ( nombre, precio )
       ),
       cobros ( id, monto, estado, metodo )
     `)
@@ -85,7 +87,7 @@ router.get('/:id/factura', auth, async (req, res) => {
       numero_pedido, canal, estado, observaciones, creado_en,
       cliente_nombre, cliente_telefono, cliente_direccion,
       usuarios ( nombre ),
-      pedido_items ( cantidad, precio_unitario, observacion, productos ( nombre ) ),
+      pedido_items ( cantidad, precio_unitario, observacion, productos ( nombre ), pedido_item_extras ( nombre, precio ) ),
       cobros ( monto, estado, metodo ),
       incidencias ( tipo, descripcion, creado_en ),
       facturas ( numero_factura, creado_en )
@@ -153,6 +155,12 @@ router.get('/:id/factura', auth, async (req, res) => {
     doc.text(`$${Number(item.precio_unitario).toLocaleString('es-AR')}`, 350, y, { width: 80, align: 'right' })
     doc.text(`$${subtotal.toLocaleString('es-AR')}`, 450, y, { width: 95, align: 'right' })
     y += 18
+    if (item.pedido_item_extras?.length) {
+      const listaExtras = item.pedido_item_extras.map(e => Number(e.precio) > 0 ? `${e.nombre} (+$${Number(e.precio).toLocaleString('es-AR')})` : e.nombre).join(', ')
+      doc.fillColor('#888').fontSize(9).text(`+ ${listaExtras}`, 90, y, { width: 250 })
+      doc.fillColor('#333').fontSize(10)
+      y += 14
+    }
     if (item.observacion) {
       doc.fillColor('#e8832a').fontSize(9).text(`⚠ ${item.observacion}`, 90, y, { width: 250 })
       doc.fillColor('#333').fontSize(10)
