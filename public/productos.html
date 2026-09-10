@@ -45,6 +45,8 @@
       background: rgba(138,125,110,0.2);
       color: var(--text-muted);
     }
+    .fila-clickeable { cursor: pointer; }
+    .fila-clickeable:hover td { background: var(--surface2); }
 
     .promo-card {
       background: var(--surface);
@@ -119,7 +121,7 @@
 <body>
 
   <nav class="navbar">
-    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span> · Precios</span>
+    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span><span class="navbar-subtitle"> · Precios</span></span>
     <div id="nav-switcher"></div>
     <div class="navbar-right">
       <span class="navbar-role" id="nombre-usuario"></span>
@@ -279,7 +281,7 @@
         return
       }
       tbody.innerHTML = productos.map(p => `
-        <tr>
+        <tr class="fila-clickeable" onclick="abrirModalProducto('${p.id}')">
           <td>${p.nombre}</td>
           <td class="mono">
             ${p.descuento_porcentaje ? `
@@ -289,7 +291,7 @@
             ` : `$${Number(p.precio).toLocaleString('es-AR')}`}
           </td>
           <td>${p.activo ? '<span class="text-ok" style="font-size:12px;">● Visible</span>' : '<span class="chip-oculto">Oculto</span>'}</td>
-          <td><button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="abrirModalProducto('${p.id}')">✎ Editar</button></td>
+          <td><button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="event.stopPropagation();abrirModalProducto('${p.id}')">✎ Editar</button></td>
         </tr>
       `).join('')
     }

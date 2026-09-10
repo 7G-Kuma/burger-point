@@ -208,6 +208,40 @@
       color: var(--text-muted);
       margin-top: 2px;
     }
+
+    .cart-bar {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 150;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.4);
+      padding: 12px 16px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+    }
+    .cart-bar .info { font-size: 13px; font-weight: 600; }
+    .cart-bar .info .count {
+      background: var(--accent);
+      color: #1a1108;
+      border-radius: 20px;
+      padding: 2px 9px;
+      font-family: var(--mono);
+      font-size: 12px;
+      margin-right: 8px;
+    }
+    .cart-bar .total { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--ok); }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
+      .cart-bar.visible { display: flex; }
+      #carrito-col { padding-bottom: 70px; }
+      .qty-btn { width: 34px; height: 34px; font-size: 16px; }
+      .producto-btn { padding: 16px 10px; }
+    }
   </style>
 </head>
 <body>
@@ -254,7 +288,7 @@
     </div>
 
     <!-- COLUMNA DERECHA: carrito -->
-    <div>
+    <div id="carrito-col">
       <div class="card" style="position:sticky;top:80px;">
         <div class="card-header">
           <h3>Pedido actual</h3>
@@ -283,6 +317,11 @@
       </div>
     </div>
 
+  </div>
+
+  <div class="cart-bar" id="cart-bar" onclick="scrollToCart()">
+    <span class="info"><span class="count" id="cart-bar-count">0</span>Ver pedido</span>
+    <span class="total" id="cart-bar-total">$0</span>
   </div>
 
   <!-- MODAL CAMBIAR ESTADO -->
@@ -382,9 +421,13 @@
 
     function renderCarrito() {
       const cont = document.getElementById('carrito-items')
+      const cartBar = document.getElementById('cart-bar')
+      const cantidadTotal = carrito.reduce((s, i) => s + i.cantidad, 0)
+
       if (carrito.length === 0) {
         cont.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px 0;">Seleccioná productos</div>`
         document.getElementById('total-display').textContent = '$0'
+        cartBar.classList.remove('visible')
         return
       }
       cont.innerHTML = carrito.map(i => `
@@ -400,6 +443,13 @@
       `).join('')
       const total = carrito.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0)
       document.getElementById('total-display').textContent = '$' + total.toLocaleString('es-AR')
+      document.getElementById('cart-bar-count').textContent = cantidadTotal
+      document.getElementById('cart-bar-total').textContent = '$' + total.toLocaleString('es-AR')
+      cartBar.classList.add('visible')
+    }
+
+    function scrollToCart() {
+      document.getElementById('carrito-col')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 
     function limpiarCarrito() {

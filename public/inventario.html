@@ -60,6 +60,7 @@
     .estado-normal  { background: rgba(76,175,125,0.15); color: #4caf7d; }
     .estado-bajo    { background: rgba(245,200,66,0.15); color: #f5c842; }
     .estado-agotado { background: rgba(217,79,61,0.15);  color: #f08070; }
+    .fila-clickeable { cursor: pointer; }
 
     /* Modal ingreso */
     .modal-bg {
@@ -77,7 +78,7 @@
 <body>
 
   <nav class="navbar">
-    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span> · Inventario</span>
+    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span><span class="navbar-subtitle"> · Inventario</span></span>
     <div id="nav-switcher"></div>
     <div class="navbar-right">
       <span class="navbar-role" id="nombre-usuario"></span>
@@ -220,12 +221,12 @@
       const ordenados = [...insumos].sort((a, b) => orden[a.estado] - orden[b.estado])
 
       tbody.innerHTML = ordenados.map(i => `
-        <tr class="insumo-row">
+        <tr class="insumo-row fila-clickeable" onclick="abrirModal('${i.id}', '${i.nombre.replace(/'/g, "\\'")}')">
           <td>${i.nombre}</td>
           <td class="mono">${Number(i.cantidad_actual).toLocaleString('es-AR')} ${i.unidad || ''}</td>
           <td class="mono" style="color:var(--text-muted);">${Number(i.cantidad_minima).toLocaleString('es-AR')} ${i.unidad || ''}</td>
           <td><span class="estado-chip estado-${i.estado}">${i.estado}</span></td>
-          <td><button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="abrirModal('${i.id}', '${i.nombre.replace(/'/g, "\\'")}')">➕ Ingreso</button></td>
+          <td><button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="event.stopPropagation();abrirModal('${i.id}', '${i.nombre.replace(/'/g, "\\'")}')">➕ Ingreso</button></td>
         </tr>
       `).join('')
     }

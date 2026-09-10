@@ -160,7 +160,25 @@ function renderNavSwitcher() {
 
   const actual = location.pathname
 
-  cont.innerHTML = vistas.map(v => `
+  const links = vistas.map(v => `
     <a href="${v.href}" class="nav-switch-link ${actual === v.href ? 'active' : ''}">${v.icono} ${v.label}</a>
   `).join('')
+
+  cont.innerHTML = `
+    <button class="nav-toggle" id="nav-toggle" onclick="toggleNavMenu()" aria-label="Menú">☰</button>
+    <div class="nav-links" id="nav-links">${links}</div>
+  `
+
+  document.addEventListener('click', e => {
+    const panel = document.getElementById('nav-links')
+    const toggle = document.getElementById('nav-toggle')
+    if (!panel?.classList.contains('abierto')) return
+    if (panel.contains(e.target) || toggle?.contains(e.target)) return
+    panel.classList.remove('abierto')
+  })
+}
+
+// Abre/cierra el menú de navegación colapsado en pantallas chicas
+function toggleNavMenu() {
+  document.getElementById('nav-links')?.classList.toggle('abierto')
 }

@@ -125,6 +125,39 @@
 
     .confirmacion { text-align: center; padding: 20px 0; }
     .confirmacion .num { font-family: var(--font-display); font-size: 40px; font-weight: 700; color: var(--accent); margin: 12px 0; }
+
+    .cart-bar {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 150;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.4);
+      padding: 12px 16px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+    }
+    .cart-bar .info { font-size: 13px; font-weight: 600; }
+    .cart-bar .info .count {
+      background: var(--accent);
+      color: #1a1108;
+      border-radius: 20px;
+      padding: 2px 9px;
+      font-family: var(--mono);
+      font-size: 12px;
+      margin-right: 8px;
+    }
+    .cart-bar .total { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--ok); }
+
+    @media (max-width: 760px) {
+      .cart-bar.visible { display: flex; }
+      .layout { padding-bottom: 80px; }
+      .qty-btn { width: 34px; height: 34px; font-size: 16px; }
+      .productos-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    }
   </style>
 </head>
 <body>
@@ -187,6 +220,11 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <div class="cart-bar" id="cart-bar" onclick="scrollToCart()">
+    <span class="info"><span class="count" id="cart-bar-count">0</span>Ver mi pedido</span>
+    <span class="total" id="cart-bar-total">$0</span>
   </div>
 
   <div id="toast"></div>
@@ -294,9 +332,13 @@
 
     function renderCarrito() {
       const cont = document.getElementById('carrito-items')
+      const cartBar = document.getElementById('cart-bar')
+      const cantidadTotal = carrito.reduce((s, i) => s + i.cantidad, 0)
+
       if (carrito.length === 0) {
         cont.innerHTML = `<div style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0;">Seleccioná productos</div>`
         document.getElementById('total-display').textContent = '$0'
+        cartBar.classList.remove('visible')
         return
       }
       cont.innerHTML = carrito.map(i => `
@@ -310,6 +352,13 @@
       `).join('')
       const total = carrito.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0)
       document.getElementById('total-display').textContent = '$' + total.toLocaleString('es-AR')
+      document.getElementById('cart-bar-count').textContent = cantidadTotal
+      document.getElementById('cart-bar-total').textContent = '$' + total.toLocaleString('es-AR')
+      cartBar.classList.add('visible')
+    }
+
+    function scrollToCart() {
+      document.getElementById('card-pedido')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
 
     async function confirmarPedido() {
@@ -351,6 +400,7 @@
     }
 
     function mostrarConfirmacion(numero) {
+      document.getElementById('cart-bar').classList.remove('visible')
       document.getElementById('card-pedido').innerHTML = `
         <div class="confirmacion">
           <div style="font-size:40px;">✅</div>
