@@ -144,11 +144,17 @@ function renderNavSwitcher() {
   if (!cont || !usuario) return
   if (!['propietario', 'encargado'].includes(usuario.rol)) return
 
-  const vistas = [
-    { href: '/panel.html',      icono: '📊', label: 'Panel',      seccion: 'panel' },
-    { href: '/caja.html',       icono: '🛒', label: 'Caja',       seccion: 'caja' },
-    { href: '/cocina.html',     icono: '🔥', label: 'Cocina',     seccion: 'cocina' },
-    { href: '/reparto.html',    icono: '🛵', label: 'Reparto',    seccion: 'reparto' },
+  // Operativas quedan siempre a la vista; el resto (back-office) se agrupa en
+  // un desplegable "Gestión" para que el navbar no se llene de links a medida
+  // que se suman secciones nuevas
+  const operativas = [
+    { href: '/panel.html',   icono: '📊', label: 'Panel',   seccion: 'panel' },
+    { href: '/caja.html',    icono: '🛒', label: 'Caja',    seccion: 'caja' },
+    { href: '/cocina.html',  icono: '🔥', label: 'Cocina',  seccion: 'cocina' },
+    { href: '/reparto.html', icono: '🛵', label: 'Reparto', seccion: 'reparto' }
+  ].filter(v => usuario.rol === 'propietario' || tienePermiso(v.seccion))
+
+  const gestion = [
     { href: '/inventario.html', icono: '📦', label: 'Inventario', seccion: 'inventario' },
     { href: '/registro.html',   icono: '🧾', label: 'Registro',   seccion: 'registro' },
     { href: '/productos.html',  icono: '💲', label: 'Precios',    seccion: 'productos' },
@@ -157,18 +163,25 @@ function renderNavSwitcher() {
   ].filter(v => usuario.rol === 'propietario' || tienePermiso(v.seccion))
 
   if (usuario.rol === 'propietario') {
-    vistas.push({ href: '/permisos.html', icono: '🔐', label: 'Permisos' })
+    gestion.push({ href: '/permisos.html', icono: '🔐', label: 'Permisos' })
   }
 
   const actual = location.pathname
+  const enlace = v => `<a href="${v.href}" class="nav-switch-link ${actual === v.href ? 'active' : ''}">${v.icono} ${v.label}</a>`
 
-  const links = vistas.map(v => `
-    <a href="${v.href}" class="nav-switch-link ${actual === v.href ? 'active' : ''}">${v.icono} ${v.label}</a>
-  `).join('')
+  const gestionActiva = gestion.some(v => v.href === actual)
+  const menuGestion = gestion.length === 0 ? '' : `
+    <div class="nav-dropdown" id="nav-gestion">
+      <button type="button" class="nav-dropdown-trigger ${gestionActiva ? 'active' : ''}" onclick="toggleNavGestion(event)">⚙️ Gestión ▾</button>
+      <div class="nav-dropdown-menu" id="nav-gestion-menu">
+        <div class="nav-dropdown-label">Gestión</div>
+        ${gestion.map(enlace).join('')}
+      </div>
+    </div>`
 
   cont.innerHTML = `
     <button class="nav-toggle" id="nav-toggle" onclick="toggleNavMenu()" aria-label="Menú">☰</button>
-    <div class="nav-links" id="nav-links">${links}</div>
+    <div class="nav-links" id="nav-links">${operativas.map(enlace).join('')}${menuGestion}</div>
   `
 
   document.addEventListener('click', e => {
@@ -178,6 +191,20 @@ function renderNavSwitcher() {
     if (panel.contains(e.target) || toggle?.contains(e.target)) return
     panel.classList.remove('abierto')
   })
+
+  document.addEventListener('click', e => {
+    const menu = document.getElementById('nav-gestion-menu')
+    const dropdown = document.getElementById('nav-gestion')
+    if (!menu?.classList.contains('abierto')) return
+    if (dropdown?.contains(e.target)) return
+    menu.classList.remove('abierto')
+  })
+}
+
+// Abre/cierra el desplegable "Gestión" del navbar (Inventario/Registro/Precios/etc.)
+function toggleNavGestion(e) {
+  e.stopPropagation()
+  document.getElementById('nav-gestion-menu')?.classList.toggle('abierto')
 }
 
 // Abre/cierra el menú de navegación colapsado en pantallas chicas
