@@ -153,8 +153,33 @@
     @media print {
       .navbar, .filtros, .tabs, .btn { display: none !important; }
       body { background: #fff !important; color: #000 !important; }
-      .balance-card, .metodo-card, .resumen-card { border: 1px solid #ccc !important; background: #fff !important; }
+      .balance-card, .metodo-card, .resumen-card, .chart-card { border: 1px solid #ccc !important; background: #fff !important; box-shadow: none !important; }
+      .incidencia-tipo { background: #eee !important; color: #000 !important; }
     }
+
+    .incidencia-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .incidencia-row:last-child { border-bottom: none; }
+    .incidencia-tipo {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: rgba(217,79,61,0.15);
+      color: #f08070;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .incidencia-detalle { flex: 1; }
+    .incidencia-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
     .resumen-card {
       border-radius: var(--radius);
@@ -297,7 +322,9 @@
 
       <div class="balance-card" id="balance-card"></div>
 
-      <div class="chart-card" id="cancelados-card" style="margin-bottom:0;"></div>
+      <div class="chart-card" id="cancelados-card"></div>
+
+      <div class="chart-card" id="incidencias-card" style="margin-bottom:0;"></div>
     </div>
 
     <!-- COMPARATIVA -->
@@ -543,6 +570,37 @@
       document.getElementById('cancelados-card').innerHTML = `
         <h3>Pedidos cancelados</h3>
         <p style="margin-top:8px;">${data.cancelados.cantidad} pedido${data.cancelados.cantidad === 1 ? '' : 's'} cancelado${data.cancelados.cantidad === 1 ? '' : 's'}${data.cancelados.total > 0 ? ` — hubieran sumado $${data.cancelados.total.toLocaleString('es-AR')}` : ''}</p>
+      `
+
+      renderIncidencias(data.incidencias)
+    }
+
+    const TIPO_INCIDENCIA_LABEL = { error_cocina: '🔥 Error de cocina', otro: '📝 Otro' }
+
+    function renderIncidencias(incidencias) {
+      const cont = document.getElementById('incidencias-card')
+      if (!incidencias || incidencias.length === 0) {
+        cont.innerHTML = `
+          <h3>🗒️ Incidencias y quejas</h3>
+          <p style="margin-top:8px;color:var(--ok);">✅ No se reportó ningún problema en este rango</p>
+        `
+        return
+      }
+      cont.innerHTML = `
+        <h3>🗒️ Incidencias y quejas (${incidencias.length})</h3>
+        <div style="margin-top:8px;">
+          ${incidencias.map(i => `
+            <div class="incidencia-row">
+              <span class="incidencia-tipo">${TIPO_INCIDENCIA_LABEL[i.tipo] || i.tipo}</span>
+              <div class="incidencia-detalle">
+                ${i.descripcion || 'Sin descripción'}
+                <div class="incidencia-meta">
+                  ${i.numero_pedido ? `Pedido #${i.numero_pedido} · ` : ''}${i.reportado_por ? `reportado por ${i.reportado_por} · ` : ''}${formatFecha(i.creado_en)}
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
       `
     }
 

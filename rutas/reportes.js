@@ -78,15 +78,15 @@ const METODO_TEXTO = { efectivo: 'efectivo', tarjeta: 'tarjeta', transferencia: 
 // Arma la frase en español para que el propietario no tenga que interpretar
 // el gráfico — clasifica el día en una escala de "muy por debajo" a "muy por
 // encima" de lo esperado, con un margen de ±8% considerado normal.
-function generarResumen({ totalVentas, totalPedidos, esperado, muestras, porMetodo, cancelados }) {
+function generarResumen({ totalVentas, totalPedidos, esperado, muestras, porMetodo, cancelados, incidencias }) {
   if (muestras === 0) {
-    return {
-      texto: totalPedidos > 0
-        ? `Se vendieron $${totalVentas.toLocaleString('es-AR')} en ${totalPedidos} pedido${totalPedidos === 1 ? '' : 's'}. Todavía no hay suficiente historial para saber si es más o menos de lo habitual.`
-        : `No hubo ventas en este rango.`,
-      categoria: 'sin_datos',
-      variacion: null
+    let texto = totalPedidos > 0
+      ? `Se vendieron $${totalVentas.toLocaleString('es-AR')} en ${totalPedidos} pedido${totalPedidos === 1 ? '' : 's'}. Todavía no hay suficiente historial para saber si es más o menos de lo habitual.`
+      : `No hubo ventas en este rango.`
+    if (incidencias?.length > 0) {
+      texto += ` Se reportaron ${incidencias.length} incidencia${incidencias.length === 1 ? '' : 's'} — revisalas abajo.`
     }
+    return { texto, categoria: 'sin_datos', variacion: null }
   }
 
   const variacion = esperado > 0 ? ((totalVentas - esperado) / esperado) * 100 : (totalVentas > 0 ? 100 : 0)
@@ -106,6 +106,9 @@ function generarResumen({ totalVentas, totalPedidos, esperado, muestras, porMeto
   }
   if (cancelados?.cantidad > 0) {
     texto += ` Hubo ${cancelados.cantidad} pedido${cancelados.cantidad === 1 ? '' : 's'} cancelado${cancelados.cantidad === 1 ? '' : 's'}.`
+  }
+  if (incidencias?.length > 0) {
+    texto += ` Se reportaron ${incidencias.length} incidencia${incidencias.length === 1 ? '' : 's'} — revisalas abajo.`
   }
 
   return { texto, categoria, variacion: Math.round(variacion) }
@@ -234,6 +237,26 @@ router.get('/cierre', auth, requireSeccion('reportes'), async (req, res) => {
     total: canceladosRaw?.reduce((s, p) => s + totalItems(p.pedido_items), 0) || 0
   }
 
+  // Incidencias/quejas del rango — hoy solo las carga cocina (error de cocina
+  // u "otro"), pero cualquier rol que registre incidencias a futuro aparece
+  // acá igual. Visible para propietario y encargado (ambos dirigen al
+  // personal — caja, cocina, reparto — y necesitan verlas para gestionar)
+  const { data: incidenciasRaw } = await supabase
+    .from('incidencias')
+    .select('id, tipo, descripcion, creado_en, pedidos ( numero_pedido ), usuarios ( nombre )')
+    .gte('creado_en', desde + 'T00:00:00')
+    .lte('creado_en', hasta + 'T23:59:59')
+    .order('creado_en', { ascending: false })
+
+  const incidencias = (incidenciasRaw || []).map(i => ({
+    id: i.id,
+    tipo: i.tipo,
+    descripcion: i.descripcion,
+    creado_en: i.creado_en,
+    numero_pedido: i.pedidos?.numero_pedido || null,
+    reportado_por: i.usuarios?.nombre || null
+  }))
+
   // "Lo esperado" — un solo día se compara contra el mismo día de la semana;
   // un rango de varios días, contra el período inmediatamente anterior
   const { esperado, muestras } = desde === hasta
@@ -243,14 +266,14 @@ router.get('/cierre', auth, requireSeccion('reportes'), async (req, res) => {
   const resumen = generarResumen({
     totalVentas: totalConfirmado + totalPendiente,
     totalPedidos: cantidadCobros,
-    esperado, muestras, porMetodo, cancelados
+    esperado, muestras, porMetodo, cancelados, incidencias
   })
 
   res.json({
     desde, hasta,
     porMetodo, totalConfirmado, totalPendiente,
     totalGeneral: totalConfirmado + totalPendiente,
-    cantidadCobros, cancelados, resumen
+    cantidadCobros, cancelados, incidencias, resumen
   })
 })
 
