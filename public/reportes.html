@@ -153,8 +153,25 @@
     @media print {
       .navbar, .filtros, .tabs, .btn { display: none !important; }
       body { background: #fff !important; color: #000 !important; }
-      .balance-card, .metodo-card { border: 1px solid #ccc !important; background: #fff !important; }
+      .balance-card, .metodo-card, .resumen-card { border: 1px solid #ccc !important; background: #fff !important; }
     }
+
+    .resumen-card {
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      border: 1px solid var(--border);
+    }
+    .resumen-card .resumen-icono { font-size: 28px; line-height: 1; flex-shrink: 0; }
+    .resumen-card .resumen-titulo { font-family: var(--mono); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+    .resumen-card .resumen-texto { font-size: 15px; line-height: 1.5; }
+    .resumen-card.muy_por_encima, .resumen-card.por_encima { background: rgba(76,175,125,0.08); border-color: rgba(76,175,125,0.3); }
+    .resumen-card.normal { background: rgba(138,125,110,0.08); }
+    .resumen-card.por_debajo, .resumen-card.muy_por_debajo { background: rgba(217,79,61,0.08); border-color: rgba(217,79,61,0.3); }
+    .resumen-card.sin_datos { background: var(--surface); }
 
     /* ── COMPARATIVA ── */
     .comp-controles { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -273,6 +290,8 @@
         <button class="btn btn-secondary" onclick="setDiaCierre(1)">Ayer</button>
         <button class="btn btn-secondary" onclick="window.print()">🖨️ Imprimir</button>
       </div>
+
+      <div class="resumen-card" id="resumen-card"></div>
 
       <div class="metodo-grid" id="metodo-grid"></div>
 
@@ -479,7 +498,26 @@
       renderCierre(data)
     }
 
+    const RESUMEN_ICONO = {
+      muy_por_encima: '🎉', por_encima: '📈', normal: '👍',
+      por_debajo: '📉', muy_por_debajo: '⚠️', sin_datos: 'ℹ️'
+    }
+
+    function renderResumen(resumen, esUnDia) {
+      const cont = document.getElementById('resumen-card')
+      cont.className = 'resumen-card ' + resumen.categoria
+      cont.innerHTML = `
+        <span class="resumen-icono">${RESUMEN_ICONO[resumen.categoria] || 'ℹ️'}</span>
+        <div>
+          <div class="resumen-titulo">${esUnDia ? 'Resumen del día' : 'Resumen del período'}</div>
+          <div class="resumen-texto">${resumen.texto}</div>
+        </div>
+      `
+    }
+
     function renderCierre(data) {
+      renderResumen(data.resumen, data.desde === data.hasta)
+
       document.getElementById('metodo-grid').innerHTML = data.porMetodo.map(m => `
         <div class="metodo-card">
           <div class="metodo-nombre">${METODO_LABEL[m.metodo] || m.metodo}</div>

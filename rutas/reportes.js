@@ -20,6 +20,97 @@ function totalItems(items) {
   return items?.reduce((s, i) => s + i.cantidad * Number(i.precio_unitario), 0) || 0
 }
 
+async function ventasEnRango(supabase, desde, hasta) {
+  const { data: pedidos } = await supabase
+    .from('pedidos')
+    .select('creado_en, estado, pedido_items ( cantidad, precio_unitario )')
+    .gte('creado_en', desde + 'T00:00:00')
+    .lte('creado_en', hasta + 'T23:59:59')
+  return { pedidos: pedidos || [] }
+}
+
+// "Lo esperado" para un solo día = promedio de venta de las últimas `semanas`
+// ocurrencias del mismo día de la semana (así un viernes se compara con otros
+// viernes, no con el promedio general que mezcla días flojos y fuertes)
+async function esperadoMismoDiaSemana(supabase, fechaIso, semanas = 8) {
+  const fechaObj = new Date(fechaIso + 'T00:00:00')
+  const fechasComparables = []
+  for (let i = 1; i <= semanas; i++) {
+    const d = new Date(fechaObj)
+    d.setDate(d.getDate() - i * 7)
+    fechasComparables.push(d.toISOString().slice(0, 10))
+  }
+
+  const { pedidos } = await ventasEnRango(supabase, fechasComparables[fechasComparables.length - 1], fechasComparables[0])
+
+  const porDia = {}
+  pedidos.forEach(p => {
+    if (p.estado === 'cancelado') return
+    const dia = p.creado_en.slice(0, 10)
+    if (!fechasComparables.includes(dia)) return
+    porDia[dia] = (porDia[dia] || 0) + totalItems(p.pedido_items)
+  })
+
+  const diasConVentas = Object.keys(porDia)
+  const muestras = diasConVentas.length
+  const esperado = muestras ? diasConVentas.reduce((s, d) => s + porDia[d], 0) / semanas : 0
+  return { esperado, muestras }
+}
+
+// "Lo esperado" para un rango de varios días = el total del período inmediatamente
+// anterior, de la misma cantidad de días
+async function esperadoPeriodoAnterior(supabase, desde, hasta) {
+  const desdeObj = new Date(desde + 'T00:00:00')
+  const hastaObj = new Date(hasta + 'T00:00:00')
+  const dias = Math.round((hastaObj - desdeObj) / 86400000) + 1
+
+  const finAnterior = new Date(desdeObj); finAnterior.setDate(finAnterior.getDate() - 1)
+  const inicioAnterior = new Date(finAnterior); inicioAnterior.setDate(inicioAnterior.getDate() - (dias - 1))
+  const iso = d => d.toISOString().slice(0, 10)
+
+  const { pedidos } = await ventasEnRango(supabase, iso(inicioAnterior), iso(finAnterior))
+  const esperado = pedidos.filter(p => p.estado !== 'cancelado').reduce((s, p) => s + totalItems(p.pedido_items), 0)
+  return { esperado, muestras: esperado > 0 ? 1 : 0 }
+}
+
+const METODO_TEXTO = { efectivo: 'efectivo', tarjeta: 'tarjeta', transferencia: 'transferencia' }
+
+// Arma la frase en español para que el propietario no tenga que interpretar
+// el gráfico — clasifica el día en una escala de "muy por debajo" a "muy por
+// encima" de lo esperado, con un margen de ±8% considerado normal.
+function generarResumen({ totalVentas, totalPedidos, esperado, muestras, porMetodo, cancelados }) {
+  if (muestras === 0) {
+    return {
+      texto: totalPedidos > 0
+        ? `Se vendieron $${totalVentas.toLocaleString('es-AR')} en ${totalPedidos} pedido${totalPedidos === 1 ? '' : 's'}. Todavía no hay suficiente historial para saber si es más o menos de lo habitual.`
+        : `No hubo ventas en este rango.`,
+      categoria: 'sin_datos',
+      variacion: null
+    }
+  }
+
+  const variacion = esperado > 0 ? ((totalVentas - esperado) / esperado) * 100 : (totalVentas > 0 ? 100 : 0)
+
+  let categoria, calificativo
+  if (variacion >= 20)       { categoria = 'muy_por_encima'; calificativo = 'bastante por encima de lo esperado 🎉' }
+  else if (variacion >= 8)   { categoria = 'por_encima';     calificativo = 'un poco por encima de lo esperado 📈' }
+  else if (variacion > -8)   { categoria = 'normal';         calificativo = 'dentro de lo normal, como se esperaba' }
+  else if (variacion > -20)  { categoria = 'por_debajo';     calificativo = 'un poco por debajo de lo esperado 📉' }
+  else                       { categoria = 'muy_por_debajo'; calificativo = 'bastante por debajo de lo esperado ⚠️' }
+
+  let texto = `Se vendieron $${totalVentas.toLocaleString('es-AR')} en ${totalPedidos} pedido${totalPedidos === 1 ? '' : 's'}, ${calificativo} (lo habitual para este período ronda los $${Math.round(esperado).toLocaleString('es-AR')}).`
+
+  const metodoTop = [...porMetodo].sort((a, b) => b.confirmado.monto - a.confirmado.monto)[0]
+  if (metodoTop && metodoTop.confirmado.monto > 0) {
+    texto += ` La mayor parte se cobró en ${METODO_TEXTO[metodoTop.metodo]}.`
+  }
+  if (cancelados?.cantidad > 0) {
+    texto += ` Hubo ${cancelados.cantidad} pedido${cancelados.cantidad === 1 ? '' : 's'} cancelado${cancelados.cantidad === 1 ? '' : 's'}.`
+  }
+
+  return { texto, categoria, variacion: Math.round(variacion) }
+}
+
 // GET /api/reportes?desde=&hasta=&canal= — estadísticas de ventas del rango elegido
 router.get('/', auth, requireSeccion('reportes'), async (req, res) => {
   const supabase = getSupabase()
@@ -143,11 +234,23 @@ router.get('/cierre', auth, requireSeccion('reportes'), async (req, res) => {
     total: canceladosRaw?.reduce((s, p) => s + totalItems(p.pedido_items), 0) || 0
   }
 
+  // "Lo esperado" — un solo día se compara contra el mismo día de la semana;
+  // un rango de varios días, contra el período inmediatamente anterior
+  const { esperado, muestras } = desde === hasta
+    ? await esperadoMismoDiaSemana(supabase, desde)
+    : await esperadoPeriodoAnterior(supabase, desde, hasta)
+
+  const resumen = generarResumen({
+    totalVentas: totalConfirmado + totalPendiente,
+    totalPedidos: cantidadCobros,
+    esperado, muestras, porMetodo, cancelados
+  })
+
   res.json({
     desde, hasta,
     porMetodo, totalConfirmado, totalPendiente,
     totalGeneral: totalConfirmado + totalPendiente,
-    cantidadCobros, cancelados
+    cantidadCobros, cancelados, resumen
   })
 })
 
