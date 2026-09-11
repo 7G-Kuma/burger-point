@@ -42,11 +42,11 @@ router.get('/', auth, async (req, res) => {
 // POST /api/productos — agregar producto al menú
 router.post('/', auth, requireSeccion('productos'), async (req, res) => {
   const supabase = getSupabase()
-  const { nombre, precio, descripcion } = req.body
+  const { nombre, precio, descripcion, categoria } = req.body
   if (!nombre || !precio) return res.status(400).json({ error: 'Nombre y precio requeridos' })
   const { data, error } = await supabase
     .from('productos')
-    .insert({ nombre, precio, descripcion: descripcion || null })
+    .insert({ nombre, precio, descripcion: descripcion || null, categoria: categoria || 'Otros' })
     .select()
     .single()
   if (error) return res.status(500).json({ error: error.message })
@@ -59,7 +59,7 @@ router.post('/', auth, requireSeccion('productos'), async (req, res) => {
 // PATCH /api/productos/:id — editar precio, nombre, descripción o disponibilidad en el menú
 router.patch('/:id', auth, requireSeccion('productos'), async (req, res) => {
   const supabase = getSupabase()
-  const { nombre, precio, descripcion, activo } = req.body
+  const { nombre, precio, descripcion, activo, categoria } = req.body
 
   const cambios = {}
   if (nombre !== undefined) cambios.nombre = nombre
@@ -69,6 +69,7 @@ router.patch('/:id', auth, requireSeccion('productos'), async (req, res) => {
   }
   if (descripcion !== undefined) cambios.descripcion = descripcion
   if (activo !== undefined) cambios.activo = activo
+  if (categoria !== undefined) cambios.categoria = categoria
 
   if (Object.keys(cambios).length === 0) {
     return res.status(400).json({ error: 'No se envió ningún cambio' })

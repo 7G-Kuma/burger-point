@@ -210,6 +210,15 @@
         <label>Descripción</label>
         <input type="text" id="prod-descripcion" placeholder="Ingredientes, algo breve">
       </div>
+      <div class="input-group mt-16">
+        <label>Categoría</label>
+        <select id="prod-categoria">
+          <option value="Hamburguesas">Hamburguesas</option>
+          <option value="Papas">Papas</option>
+          <option value="Bebidas">Bebidas</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </div>
       <div class="input-group mt-16" id="grupo-prod-activo" style="display:none;">
         <label style="display:flex;align-items:center;justify-content:space-between;">
           Visible en el menú
@@ -342,6 +351,7 @@
         document.getElementById('prod-nombre').value = p.nombre
         document.getElementById('prod-precio').value = p.precio
         document.getElementById('prod-descripcion').value = p.descripcion || ''
+        document.getElementById('prod-categoria').value = p.categoria || 'Otros'
         document.getElementById('prod-activo').checked = p.activo
         grupoActivo.style.display = 'block'
       } else {
@@ -349,6 +359,7 @@
         document.getElementById('prod-nombre').value = ''
         document.getElementById('prod-precio').value = ''
         document.getElementById('prod-descripcion').value = ''
+        document.getElementById('prod-categoria').value = 'Hamburguesas'
         grupoActivo.style.display = 'none'
       }
       document.getElementById('modal-producto').style.display = 'flex'
@@ -358,6 +369,7 @@
       const nombre = document.getElementById('prod-nombre').value.trim()
       const precio = Number(document.getElementById('prod-precio').value)
       const descripcion = document.getElementById('prod-descripcion').value.trim()
+      const categoria = document.getElementById('prod-categoria').value
 
       if (!nombre) { toast('Ingresá un nombre', 'warning'); return }
       if (!precio || precio <= 0) { toast('Ingresá un precio válido', 'warning'); return }
@@ -367,12 +379,12 @@
         const activo = document.getElementById('prod-activo').checked
         data = await api(`/api/productos/${productoEditando}`, {
           method: 'PATCH',
-          body: JSON.stringify({ nombre, precio, descripcion, activo })
+          body: JSON.stringify({ nombre, precio, descripcion, categoria, activo })
         })
       } else {
         data = await api('/api/productos', {
           method: 'POST',
-          body: JSON.stringify({ nombre, precio, descripcion })
+          body: JSON.stringify({ nombre, precio, descripcion, categoria })
         })
       }
 

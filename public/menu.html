@@ -37,6 +37,63 @@
       .menu-nav-links { gap: 14px; }
     }
 
+    .menu-hero {
+      position: relative;
+      text-align: center;
+      padding: 38px 24px 44px;
+      overflow: hidden;
+    }
+    .menu-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 520px 260px at 50% 0%, rgba(232,131,42,0.16) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .menu-hero-logo {
+      width: 64px;
+      height: 64px;
+      filter: drop-shadow(0 0 24px rgba(232,131,42,0.35));
+      margin-bottom: 14px;
+    }
+    .menu-hero h1 {
+      font-family: var(--font-display);
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      position: relative;
+    }
+    .menu-hero h1 .point { color: var(--accent); }
+    .menu-hero-tagline {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 8px;
+      position: relative;
+    }
+    @media (max-width: 480px) {
+      .menu-hero { padding: 28px 16px 32px; }
+      .menu-hero-logo { width: 52px; height: 52px; }
+      .menu-hero h1 { font-size: 26px; }
+    }
+
+    .categoria-seccion { margin-bottom: 32px; }
+    .categoria-seccion:last-child { margin-bottom: 0; }
+    .categoria-titulo {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .layout {
       display: grid;
       grid-template-columns: 1fr 380px;
@@ -227,12 +284,15 @@
     </div>
   </div>
 
+  <div class="menu-hero">
+    <img src="/img/logo.svg" alt="" class="menu-hero-logo">
+    <h1>BURGER <span class="point">POINT</span></h1>
+    <p class="menu-hero-tagline">Hamburguesas artesanales · Hechas al momento</p>
+  </div>
+
   <div class="layout">
     <div>
-      <div class="page-header">
-        <h2>Armá tu pedido</h2>
-      </div>
-      <div class="productos-grid" id="productos-grid">
+      <div id="productos-grid">
         <div style="color:var(--text-muted);font-size:13px;">Cargando menú...</div>
       </div>
     </div>
@@ -489,11 +549,18 @@
       Object.values(bebidasPorMarca).forEach(variantes =>
         variantes.sort((a, b) => TAMANOS_BEBIDA.indexOf(a.tamano) - TAMANOS_BEBIDA.indexOf(b.tamano))
       )
-      const gruposBebida = Object.keys(bebidasPorMarca).map(marca => ({ esGrupoBebida: true, marca }))
+      const gruposBebida = Object.keys(bebidasPorMarca).map(marca => ({
+        esGrupoBebida: true,
+        marca,
+        categoria: bebidasPorMarca[marca][0].categoria
+      }))
       return [...resto, ...gruposBebida].sort((a, b) =>
         (a.nombre || a.marca).localeCompare(b.nombre || b.marca)
       )
     }
+
+    const ORDEN_CATEGORIAS = ['Hamburguesas', 'Papas', 'Bebidas', 'Otros']
+    const ICONO_CATEGORIA = { Hamburguesas: '🍔', Papas: '🍟', Bebidas: '🥤', Otros: '🍽️' }
 
     async function cargarMenu() {
       const res = await fetch('/api/menu')
@@ -505,7 +572,23 @@
         return
       }
       const items = agruparBebidas(productos)
-      grid.innerHTML = items.map(item => item.esGrupoBebida ? renderTarjetaBebida(item.marca) : renderTarjetaProducto(item)).join('')
+
+      const porCategoria = {}
+      items.forEach(item => {
+        const cat = item.categoria || 'Otros'
+        if (!porCategoria[cat]) porCategoria[cat] = []
+        porCategoria[cat].push(item)
+      })
+
+      const categorias = ORDEN_CATEGORIAS.filter(c => porCategoria[c]?.length)
+      grid.innerHTML = categorias.map(cat => `
+        <div class="categoria-seccion">
+          <h2 class="categoria-titulo">${ICONO_CATEGORIA[cat] || ''} ${cat}</h2>
+          <div class="productos-grid">
+            ${porCategoria[cat].map(item => item.esGrupoBebida ? renderTarjetaBebida(item.marca) : renderTarjetaProducto(item)).join('')}
+          </div>
+        </div>
+      `).join('')
     }
 
     function renderTarjetaProducto(p) {

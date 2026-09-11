@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('productos')
-    .select('id, nombre, precio, descripcion, producto_extras ( extras ( id, nombre, precio, activo ) )')
+    .select('id, nombre, precio, descripcion, categoria, producto_extras ( extras ( id, nombre, precio, activo ) )')
     .eq('activo', true)
     .order('nombre')
 

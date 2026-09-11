@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Reportes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    .filtros {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 24px;
+    }
+    .filtros .input-group { min-width: 140px; }
+    .filtros .input-group input,
+    .filtros .input-group select { padding: 9px 12px; font-size: 13px; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-card);
+    }
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .stat-value { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 860px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow-card);
+    }
+    .chart-card h3 { margin-bottom: 14px; }
+    .chart-wrap { position: relative; height: 260px; }
+
+    .tablas-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 760px) {
+      .tablas-grid { grid-template-columns: 1fr; }
+    }
+    .ranking-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .ranking-row:last-child { border-bottom: none; }
+    .ranking-pos {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      width: 18px;
+      flex-shrink: 0;
+    }
+    .ranking-nombre { flex: 1; }
+    .ranking-valor { font-family: var(--mono); color: var(--accent); font-weight: 600; white-space: nowrap; }
+    .ranking-barra-wrap { flex: 1; height: 6px; background: var(--surface2); border-radius: 4px; overflow: hidden; margin: 0 10px; }
+    .ranking-barra { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand"><img src="/img/logo.svg" alt=""> BURGER <span class="point">POINT</span><span class="navbar-subtitle"> · Reportes</span></span>
+    <div id="nav-switcher"></div>
+    <div class="navbar-right">
+      <span class="navbar-role" id="nombre-usuario"></span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div>
+        <h1>Reportes</h1>
+        <p style="margin-top:4px;">Ventas, productos más pedidos y cómo llegan tus clientes</p>
+      </div>
+    </div>
+
+    <div class="filtros">
+      <div class="input-group">
+        <label>Desde</label>
+        <input type="date" id="f-desde">
+      </div>
+      <div class="input-group">
+        <label>Hasta</label>
+        <input type="date" id="f-hasta">
+      </div>
+      <div class="input-group">
+        <label>Canal</label>
+        <select id="f-canal">
+          <option value="">Todos</option>
+          <option value="presencial">Presencial</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="delivery">Delivery</option>
+          <option value="online">Online (menú digital)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="cargarReportes()">Buscar</button>
+      <button class="btn btn-secondary" onclick="setRango(7)">Últimos 7 días</button>
+      <button class="btn btn-secondary" onclick="setRango(30)">Últimos 30 días</button>
+    </div>
+
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Ventas por día</h3>
+        <div class="chart-wrap"><canvas id="chart-dias"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Ventas por canal</h3>
+        <div class="chart-wrap"><canvas id="chart-canal"></canvas></div>
+      </div>
+    </div>
+
+    <div class="tablas-grid">
+      <div class="chart-card">
+        <h3>🏆 Productos más pedidos</h3>
+        <div id="ranking-productos"></div>
+      </div>
+      <div class="chart-card">
+        <h3>✨ Extras más elegidos</h3>
+        <div id="ranking-extras"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    let chartDias = null
+    let chartCanal = null
+
+    const COLOR_TEXT_MUTED = '#8a7d6e'
+    const COLOR_BORDER = '#2e2720'
+    const COLOR_ACCENT = '#e8832a'
+    const COLOR_ACCENT2 = '#f5c842'
+
+    const CANAL_LABEL = { presencial: 'Presencial', whatsapp: 'WhatsApp', delivery: 'Delivery', online: 'Online' }
+    const CANAL_COLOR = { presencial: '#e8832a', whatsapp: '#4caf7d', delivery: '#f5c842', online: '#5a9bd8' }
+
+    window.addEventListener('load', () => {
+      if (!requireAuth(['propietario', 'encargado'], 'reportes')) return
+      renderNavSwitcher()
+      const usuario = getUsuario()
+      document.getElementById('nombre-usuario').textContent = usuario.nombre
+      setRango(30)
+    })
+
+    function setRango(dias) {
+      const hasta = new Date()
+      const desde = new Date()
+      desde.setDate(desde.getDate() - (dias - 1))
+      document.getElementById('f-desde').value = desde.toISOString().slice(0, 10)
+      document.getElementById('f-hasta').value = hasta.toISOString().slice(0, 10)
+      cargarReportes()
+    }
+
+    async function cargarReportes() {
+      const params = new URLSearchParams()
+      const desde = document.getElementById('f-desde').value
+      const hasta = document.getElementById('f-hasta').value
+      const canal = document.getElementById('f-canal').value
+      if (desde) params.set('desde', desde)
+      if (hasta) params.set('hasta', hasta)
+      if (canal) params.set('canal', canal)
+
+      const data = await api('/api/reportes?' + params.toString())
+      if (!data) return
+      if (data.error) { toast(data.error, 'danger'); return }
+
+      renderStats(data)
+      renderChartDias(data.ventasPorDia)
+      renderChartCanal(data.ventasPorCanal)
+      renderRanking('ranking-productos', data.topProductos.map(p => ({
+        nombre: p.nombre, valor: p.cantidad, etiqueta: `${p.cantidad}x · $${p.total.toLocaleString('es-AR')}`
+      })))
+      renderRanking('ranking-extras', data.topExtras.map(e => ({
+        nombre: e.nombre, valor: e.veces, etiqueta: `${e.veces}x`
+      })))
+    }
+
+    function renderStats(data) {
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card"><div class="stat-label">Total vendido</div><div class="stat-value text-ok">$${data.totalVentas.toLocaleString('es-AR')}</div></div>
+        <div class="stat-card"><div class="stat-label">Pedidos</div><div class="stat-value">${data.totalPedidos}</div></div>
+        <div class="stat-card"><div class="stat-label">Ticket promedio</div><div class="stat-value text-accent">$${Math.round(data.ticketPromedio).toLocaleString('es-AR')}</div></div>
+        <div class="stat-card"><div class="stat-label">Cancelados</div><div class="stat-value text-danger">${data.cancelados}</div></div>
+      `
+    }
+
+    function renderChartDias(filas) {
+      const ctx = document.getElementById('chart-dias')
+      const labels = filas.map(f => new Date(f.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }))
+      const valores = filas.map(f => f.total)
+
+      if (chartDias) chartDias.destroy()
+      chartDias = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Ventas',
+            data: valores,
+            borderColor: COLOR_ACCENT,
+            backgroundColor: 'rgba(232,131,42,0.12)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointBackgroundColor: COLOR_ACCENT
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: COLOR_TEXT_MUTED, font: { size: 10 } }, grid: { color: COLOR_BORDER } },
+            y: { ticks: { color: COLOR_TEXT_MUTED, font: { size: 10 }, callback: v => '$' + v.toLocaleString('es-AR') }, grid: { color: COLOR_BORDER } }
+          }
+        }
+      })
+    }
+
+    function renderChartCanal(filas) {
+      const ctx = document.getElementById('chart-canal')
+      const labels = filas.map(f => CANAL_LABEL[f.canal] || f.canal)
+      const valores = filas.map(f => f.total)
+      const colores = filas.map(f => CANAL_COLOR[f.canal] || COLOR_ACCENT2)
+
+      if (chartCanal) chartCanal.destroy()
+
+      if (filas.length === 0) {
+        ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height)
+        return
+      }
+
+      chartCanal = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: valores, backgroundColor: colores, borderColor: '#1a1612', borderWidth: 2 }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { color: COLOR_TEXT_MUTED, font: { size: 11 }, padding: 12 } } }
+        }
+      })
+    }
+
+    function renderRanking(contId, filas) {
+      const cont = document.getElementById(contId)
+      if (filas.length === 0) {
+        cont.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:24px;font-size:13px;">Sin datos en este rango</div>`
+        return
+      }
+      const max = Math.max(...filas.map(f => f.valor))
+      cont.innerHTML = filas.map((f, i) => `
+        <div class="ranking-row">
+          <span class="ranking-pos">#${i + 1}</span>
+          <span class="ranking-nombre">${f.nombre}</span>
+          <div class="ranking-barra-wrap"><div class="ranking-barra" style="width:${max ? (f.valor / max * 100) : 0}%;"></div></div>
+          <span class="ranking-valor">${f.etiqueta}</span>
+        </div>
+      `).join('')
+    }
+  </script>
+</body>
+</html>
