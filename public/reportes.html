@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Burger Point — Reportes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
   <link rel="stylesheet" href="/css/estilos.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -21,7 +21,7 @@
       font-size: 13px;
       font-weight: 600;
     }
-    .tab-btn.active { border-color: var(--accent); background: rgba(232,131,42,0.1); color: var(--accent); }
+    .tab-btn.active { border-color: var(--accent); background: rgba(255,107,0,0.1); color: var(--accent); }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
@@ -139,8 +139,8 @@
       color: var(--accent2);
     }
     .balance-card {
-      background: linear-gradient(135deg, rgba(232,131,42,0.1), rgba(245,200,66,0.05));
-      border: 1px solid rgba(232,131,42,0.3);
+      background: linear-gradient(135deg, rgba(255,107,0,0.1), rgba(245,166,35,0.05));
+      border: 1px solid rgba(255,107,0,0.3);
       border-radius: var(--radius);
       padding: 22px;
       margin-bottom: 20px;
@@ -173,12 +173,12 @@
       text-transform: uppercase;
       padding: 3px 9px;
       border-radius: 20px;
-      background: rgba(217,79,61,0.15);
+      background: rgba(229,72,77,0.15);
       color: #f08070;
       white-space: nowrap;
       flex-shrink: 0;
     }
-    .incidencia-tipo-cliente { background: rgba(232,131,42,0.15); color: var(--accent); }
+    .incidencia-tipo-cliente { background: rgba(255,107,0,0.15); color: var(--accent); }
     .incidencia-detalle { flex: 1; }
     .incidencia-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
@@ -196,7 +196,7 @@
     .resumen-card .resumen-texto { font-size: 15px; line-height: 1.5; }
     .resumen-card.muy_por_encima, .resumen-card.por_encima { background: rgba(76,175,125,0.08); border-color: rgba(76,175,125,0.3); }
     .resumen-card.normal { background: rgba(138,125,110,0.08); }
-    .resumen-card.por_debajo, .resumen-card.muy_por_debajo { background: rgba(217,79,61,0.08); border-color: rgba(217,79,61,0.3); }
+    .resumen-card.por_debajo, .resumen-card.muy_por_debajo { background: rgba(229,72,77,0.08); border-color: rgba(229,72,77,0.3); }
     .resumen-card.sin_datos { background: var(--surface); }
 
     /* ── COMPARATIVA ── */
@@ -359,13 +359,13 @@
     let chartDias = null
     let chartCanal = null
 
-    const COLOR_TEXT_MUTED = '#8a7d6e'
-    const COLOR_BORDER = '#2e2720'
-    const COLOR_ACCENT = '#e8832a'
-    const COLOR_ACCENT2 = '#f5c842'
+    const COLOR_TEXT_MUTED = '#94a3b8'
+    const COLOR_BORDER = '#2a2d34'
+    const COLOR_ACCENT = '#ff6b00'
+    const COLOR_ACCENT2 = '#f5a623'
 
     const CANAL_LABEL = { presencial: 'Presencial', whatsapp: 'WhatsApp', delivery: 'Delivery', online: 'Online' }
-    const CANAL_COLOR = { presencial: '#e8832a', whatsapp: '#4caf7d', delivery: '#f5c842', online: '#5a9bd8' }
+    const CANAL_COLOR = { presencial: '#ff6b00', whatsapp: '#4caf7d', delivery: '#f5a623', online: '#5a9bd8' }
 
     window.addEventListener('load', () => {
       if (!requireAuth(['propietario', 'encargado'], 'reportes')) return
@@ -440,7 +440,7 @@
             label: 'Ventas',
             data: valores,
             borderColor: COLOR_ACCENT,
-            backgroundColor: 'rgba(232,131,42,0.12)',
+            backgroundColor: 'rgba(255,107,0,0.12)',
             fill: true,
             tension: 0.3,
             pointRadius: 3,
@@ -474,7 +474,7 @@
 
       chartCanal = new Chart(ctx, {
         type: 'doughnut',
-        data: { labels, datasets: [{ data: valores, backgroundColor: colores, borderColor: '#1a1612', borderWidth: 2 }] },
+        data: { labels, datasets: [{ data: valores, backgroundColor: colores, borderColor: '#17191f', borderWidth: 2 }] },
         options: {
           responsive: true,
           maintainAspectRatio: false,

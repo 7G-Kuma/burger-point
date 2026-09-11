@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Burger Point — Menú Digital</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
   <link rel="stylesheet" href="/css/estilos.css">
   <style>
@@ -31,67 +31,101 @@
       text-decoration: none;
       white-space: nowrap;
     }
-    .menu-nav-links a:hover { color: var(--accent); }
+    .menu-nav-links a:hover { color: var(--accent2); }
     @media (max-width: 480px) {
       .menu-nav { justify-content: center; text-align: center; padding: 14px 16px; }
-      .menu-nav-links { gap: 14px; }
+      .menu-nav-links { gap: 10px 14px; flex-wrap: wrap; justify-content: center; }
     }
 
     .menu-hero {
       position: relative;
       text-align: center;
-      padding: 38px 24px 44px;
+      padding: 56px 24px 52px;
       overflow: hidden;
+      border-bottom: 1px solid var(--border);
     }
     .menu-hero::before {
       content: '';
       position: absolute;
       inset: 0;
       background:
-        radial-gradient(ellipse 520px 260px at 50% 0%, rgba(232,131,42,0.16) 0%, transparent 70%);
+        radial-gradient(ellipse 640px 320px at 50% 0%, rgba(255,107,0,0.20) 0%, transparent 70%),
+        radial-gradient(ellipse 400px 240px at 85% 100%, rgba(76,175,125,0.08) 0%, transparent 60%);
       pointer-events: none;
     }
+    .menu-hero-eyebrow {
+      position: relative;
+      display: flex;
+      width: fit-content;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      background: rgba(255,107,0,0.12);
+      border: 1px solid rgba(255,107,0,0.3);
+      padding: 6px 14px;
+      border-radius: 20px;
+      margin: 0 auto 20px;
+    }
     .menu-hero-logo {
-      width: 64px;
-      height: 64px;
-      filter: drop-shadow(0 0 24px rgba(232,131,42,0.35));
-      margin-bottom: 14px;
+      display: block;
+      width: 68px;
+      height: 68px;
+      filter: drop-shadow(0 0 28px rgba(255,107,0,0.45));
+      margin: 0 auto 16px;
     }
     .menu-hero h1 {
       font-family: var(--font-display);
-      font-size: 34px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
       position: relative;
     }
     .menu-hero h1 .point { color: var(--accent); }
     .menu-hero-tagline {
-      font-family: var(--mono);
-      font-size: 12px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 500;
       color: var(--text-muted);
-      margin-top: 8px;
+      margin-top: 12px;
       position: relative;
+      max-width: 440px;
+      margin-left: auto;
+      margin-right: auto;
     }
     @media (max-width: 480px) {
-      .menu-hero { padding: 28px 16px 32px; }
-      .menu-hero-logo { width: 52px; height: 52px; }
-      .menu-hero h1 { font-size: 26px; }
+      .menu-hero { padding: 40px 16px 36px; }
+      .menu-hero-logo { width: 54px; height: 54px; }
+      .menu-hero h1 { font-size: 28px; }
     }
 
-    .categoria-seccion { margin-bottom: 32px; }
+    .categoria-seccion { margin-bottom: 36px; }
     .categoria-seccion:last-child { margin-bottom: 0; }
     .categoria-titulo {
       font-family: var(--font-display);
-      font-size: 18px;
+      font-size: 19px;
       font-weight: 700;
-      margin-bottom: 14px;
-      padding-bottom: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+    }
+    .categoria-titulo .icono-cat {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: rgba(255,107,0,0.12);
+      border: 1px solid rgba(255,107,0,0.25);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
     }
 
     .layout {
@@ -113,14 +147,18 @@
     .producto-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: var(--radius-lg);
       overflow: hidden;
       box-shadow: var(--shadow-card);
-      transition: border-color 0.15s, transform 0.15s;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
       display: flex;
       flex-direction: column;
     }
-    .producto-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .producto-card:hover {
+      border-color: rgba(255,107,0,0.4);
+      transform: translateY(-3px);
+      box-shadow: var(--glow-accent-soft);
+    }
     .producto-card.sin-stock { opacity: 0.55; }
 
     .producto-img {
@@ -151,15 +189,15 @@
       letter-spacing: 0.5px;
       padding: 3px 9px;
       border-radius: 20px;
-      background: rgba(217,79,61,0.9);
+      background: rgba(229,72,77,0.9);
       color: #fff;
       font-weight: 700;
     }
 
     .producto-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
     .producto-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-    .producto-head .nombre { font-size: 14px; font-weight: 700; font-family: var(--font-display); }
-    .producto-head .precio { font-family: var(--mono); font-size: 13px; color: var(--accent); white-space: nowrap; }
+    .producto-head .nombre { font-size: 15px; font-weight: 700; font-family: var(--font-display); }
+    .producto-head .precio { font-family: var(--mono); font-size: 13px; color: var(--accent2); white-space: nowrap; }
     .producto-head .precio-viejo { text-decoration: line-through; color: var(--text-muted); font-size: 11px; margin-right: 4px; }
     .producto-head .precio-promo { color: var(--ok); }
     .chip-descuento {
@@ -186,19 +224,28 @@
     .producto-card.sin-stock .btn-add { display: none; }
 
     .carrito-items { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; min-height: 80px; }
-    .carrito-item { background: var(--surface2); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
-    .carrito-item .nombre { flex: 1; font-size: 13px; }
-    .qty-btn { width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
-    .carrito-item .subtotal { font-family: var(--mono); font-size: 12px; color: var(--accent); width: 60px; text-align: right; }
-    .total-box { background: var(--surface2); border-radius: 8px; padding: 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-    .total-box .monto { font-size: 26px; font-weight: 700; color: var(--ok); }
+    .carrito-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; align-items: center; gap: 10px; }
+    .carrito-item .nombre { flex: 1; font-size: 13px; font-weight: 600; }
+    .qty-btn { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface3); color: var(--text); cursor: pointer; }
+    .carrito-item .subtotal { font-family: var(--mono); font-size: 12px; color: var(--accent2); width: 60px; text-align: right; }
+    .total-box {
+      background: linear-gradient(135deg, rgba(255,107,0,0.1), rgba(76,175,125,0.06));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .total-box .monto { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--ok); }
 
     .entrega-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-    .entrega-tab { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 600; text-align: center; }
-    .entrega-tab.active { border-color: var(--accent); background: rgba(232,131,42,0.1); color: var(--accent); }
+    .entrega-tab { flex: 1; padding: 11px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted); cursor: pointer; font-size: 13px; font-weight: 700; text-align: center; transition: all 0.15s; }
+    .entrega-tab.active { border-color: var(--accent); background: rgba(255,107,0,0.12); color: var(--accent2); }
 
     .confirmacion { text-align: center; padding: 20px 0; }
-    .confirmacion .num { font-family: var(--font-display); font-size: 40px; font-weight: 700; color: var(--accent); margin: 12px 0; }
+    .confirmacion .num { font-family: var(--font-display); font-size: 42px; font-weight: 800; color: var(--accent2); margin: 12px 0; }
 
     .carrito-item .extras-elegidos { font-size: 11px; color: var(--ok); margin-top: 2px; }
 
@@ -246,7 +293,7 @@
     .cart-bar .info { font-size: 13px; font-weight: 600; }
     .cart-bar .info .count {
       background: var(--accent);
-      color: #1a1108;
+      color: #1a0800;
       border-radius: 20px;
       padding: 2px 9px;
       font-family: var(--mono);
@@ -286,9 +333,10 @@
   </div>
 
   <div class="menu-hero">
+    <span class="menu-hero-eyebrow">🔥 Fuego vivo &amp; smash artesanal</span>
     <img src="/img/logo.svg" alt="" class="menu-hero-logo">
     <h1>BURGER <span class="point">POINT</span></h1>
-    <p class="menu-hero-tagline">Hamburguesas artesanales · Hechas al momento</p>
+    <p class="menu-hero-tagline">Hamburguesas de autor hechas al momento, con carne smasheada en plancha y pan de masa madre horneado a diario.</p>
   </div>
 
   <div class="layout">
@@ -657,7 +705,7 @@
       const categorias = ORDEN_CATEGORIAS.filter(c => porCategoria[c]?.length)
       grid.innerHTML = categorias.map(cat => `
         <div class="categoria-seccion">
-          <h2 class="categoria-titulo">${ICONO_CATEGORIA[cat] || ''} ${cat}</h2>
+          <h2 class="categoria-titulo"><span class="icono-cat">${ICONO_CATEGORIA[cat] || ''}</span> ${cat}</h2>
           <div class="productos-grid">
             ${porCategoria[cat].map(item => item.esGrupoBebida ? renderTarjetaBebida(item.marca) : renderTarjetaProducto(item)).join('')}
           </div>

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Burger Point — Registro</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
   <link rel="stylesheet" href="/css/estilos.css">
   <style>
@@ -54,7 +54,7 @@
       text-transform: uppercase;
     }
     .cobro-cobrado, .cobro-verificado { background: rgba(76,175,125,0.15); color: #4caf7d; }
-    .cobro-pendiente { background: rgba(245,200,66,0.15); color: #f5c842; }
+    .cobro-pendiente { background: rgba(245,166,35,0.15); color: #f5a623; }
     .inc-chip {
       font-size: 11px;
       color: var(--danger);
@@ -89,7 +89,7 @@
     .detalle-item-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
     .detalle-item-row .obs { color: var(--accent2); font-size: 11px; }
     .detalle-total { display: flex; justify-content: space-between; font-weight: 700; font-family: var(--mono); border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; }
-    .detalle-incidencias { background: rgba(217,79,61,0.08); border: 1px solid rgba(217,79,61,0.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; margin-top: 14px; }
+    .detalle-incidencias { background: rgba(229,72,77,0.08); border: 1px solid rgba(229,72,77,0.25); border-radius: 8px; padding: 10px 12px; font-size: 12px; margin-top: 14px; }
   </style>
 </head>
 <body>
@@ -280,7 +280,7 @@
         </div>
 
         ${p.cliente_nombre ? `
-          <div style="background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.25);border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:12px;">
+          <div style="background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.25);border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:12px;">
             🌐 <strong>Pedido online</strong> — ${p.cliente_nombre} · ${p.cliente_telefono || ''}
             ${p.cliente_direccion ? '<br>📍 ' + p.cliente_direccion : ''}
           </div>
