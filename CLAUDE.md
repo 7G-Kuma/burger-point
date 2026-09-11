@@ -203,6 +203,15 @@ Con esto se completó la ronda de 5 mejoras que el usuario pidió el 2026-09-10.
 - Probado en desktop y mobile, local y producción: menú por categorías, reportes con datos reales de la base (gráficos, rankings), y el desplegable Gestión abriendo/cerrando bien y filtrando correctamente según permisos del encargado.
 - **Pendiente de que el usuario mande**: fotos de las 5 marcas de bebida (ver nota al principio del documento).
 
+## Cierre de caja y comparativa de períodos (2026-09-11, mismo día)
+
+El usuario pidió sumar esto a `reportes.html`, que ahora tiene 3 pestañas: Ventas (la original), **Cierre de caja** y **Comparativa**.
+
+- **Cierre de caja** (`GET /api/reportes/cierre?desde=&hasta=`, sin fechas cierra el día de hoy): arma el desglose directo desde la tabla `cobros` (que ya tiene `monto`/`metodo`/`estado`, no hace falta recalcular desde `pedido_items`) — una tarjeta por método de pago con lo confirmado, y aparte lo que está `pendiente` (transferencias sin verificar) si hay alguno. Abajo un balance con Confirmado / Pendiente de verificar / Total general, y la cantidad y monto de pedidos cancelados del rango (informativo, no suma al balance). Botones rápidos "Hoy"/"Ayer" y "🖨️ Imprimir" (usa `window.print()` con una hoja `@media print` que oculta navbar/filtros/botones para que salga limpio en papel — pensado para que quien cierra la caja se lleve un papel).
+- **Comparativa**: compara el período actual contra el inmediato anterior, con la unidad elegible (Día/Semana/Mes) y botones "‹ Período anterior" / "Siguiente ›" para moverse en el tiempo — con unidad Mes y un clic en "Período anterior" se ve, por ejemplo, julio vs agosto (lo que pidió puntualmente el usuario: "el mes pasado con el anterior"). Gráfico de barras + variación porcentual con flecha e icono según suba o baje. **No se tocó el backend para esto** — el cálculo de los dos rangos de fecha (`calcularRangosComparativa()`) es puro JS en el cliente, y reutiliza el `GET /api/reportes` que ya existía, pidiéndolo dos veces (una por período) con `Promise.all`.
+- Ambas funciones reutilizan el permiso `reportes` que ya existía, no hicieron falta permisos nuevos ni tablas nuevas.
+- Probado con cobros reales de prueba (uno efectivo, uno transferencia pendiente) para validar que el desglose y el balance dieran los números correctos, y las 3 unidades de la comparativa con datos reales de meses anteriores ya cargados en la base. Datos de prueba limpiados después. Verificado también en producción.
+
 ## Notas técnicas conocidas
 
 - Usar **CMD**, no PowerShell, para `npm`/`node` (bloqueo de scripts de PowerShell en este entorno).
