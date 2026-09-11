@@ -273,6 +273,7 @@
     <div class="menu-nav-links">
       <a href="#" id="link-mi-cuenta" onclick="abrirModalCuenta();return false;">👤 Mi cuenta</a>
       <a href="/seguimiento.html">📦 Seguir mi pedido</a>
+      <a href="#" onclick="abrirModalQueja();return false;">💬 Dejar una queja</a>
       <a href="/index.html">🔑 Soy del staff</a>
     </div>
   </div>
@@ -402,6 +403,33 @@
     </div>
   </div>
 
+  <div class="modal-extras-bg" id="modal-queja">
+    <div class="card modal-extras-card" style="max-width:380px;">
+      <div class="card-header">
+        <h3>Dejanos tu queja o sugerencia</h3>
+        <button onclick="cerrarModalQueja()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+      </div>
+      <p style="margin-bottom:12px;">No hace falta que hayas pedido recién — contanos lo que quieras, lo lee directamente el propietario.</p>
+      <div class="input-group">
+        <label>Tu nombre</label>
+        <input type="text" id="queja-nombre-input" placeholder="Nombre y apellido">
+      </div>
+      <div class="input-group mt-8">
+        <label>Teléfono (opcional)</label>
+        <input type="tel" id="queja-telefono-input" placeholder="Por si te queremos responder">
+      </div>
+      <div class="input-group mt-8">
+        <label>N° de pedido (opcional)</label>
+        <input type="text" inputmode="numeric" id="queja-pedido-input" placeholder="Si tu queja es sobre un pedido puntual">
+      </div>
+      <div class="input-group mt-8">
+        <label>Tu mensaje</label>
+        <textarea id="queja-mensaje-input" rows="4" placeholder="Contanos qué pasó" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--font);font-size:14px;padding:10px 14px;resize:vertical;"></textarea>
+      </div>
+      <button class="btn btn-primary btn-full mt-16" onclick="enviarQueja()">Enviar</button>
+    </div>
+  </div>
+
   <div class="cart-bar" id="cart-bar" onclick="scrollToCart()">
     <span class="info"><span class="count" id="cart-bar-count">0</span>Ver mi pedido</span>
     <span class="total" id="cart-bar-total">$0</span>
@@ -512,6 +540,52 @@
         toast(`¡Listo, ${nombre}! Ya te vamos a reconocer la próxima vez`, 'ok')
       } else {
         toast(data?.error || 'Error al crear el perfil', 'danger')
+      }
+    }
+
+    // ── QUEJAS Y SUGERENCIAS — el cliente escribe directo, sin pasar por caja ni tener que haber pedido ──
+
+    function abrirModalQueja() {
+      const cliente = getClienteGuardado()
+      document.getElementById('queja-nombre-input').value = cliente?.nombre || ''
+      document.getElementById('queja-telefono-input').value = cliente?.telefono || ''
+      document.getElementById('queja-pedido-input').value = ''
+      document.getElementById('queja-mensaje-input').value = ''
+      document.getElementById('modal-queja').style.display = 'flex'
+    }
+
+    function cerrarModalQueja() {
+      document.getElementById('modal-queja').style.display = 'none'
+    }
+
+    function getClienteGuardado() {
+      const telefono = localStorage.getItem('bp_cliente_telefono')
+      if (!telefono) return null
+      const nombre = document.getElementById('link-mi-cuenta')?.textContent.replace('👤 ', '').trim()
+      return nombre && nombre !== 'Mi cuenta' ? { nombre, telefono } : { telefono }
+    }
+
+    async function enviarQueja() {
+      const nombre = document.getElementById('queja-nombre-input').value.trim()
+      const telefono = document.getElementById('queja-telefono-input').value.trim()
+      const numero_pedido = document.getElementById('queja-pedido-input').value.trim()
+      const mensaje = document.getElementById('queja-mensaje-input').value.trim()
+
+      if (!nombre) { toast('Contanos tu nombre', 'warning'); return }
+      if (!mensaje) { toast('Escribí tu mensaje', 'warning'); return }
+
+      const res = await fetch('/api/incidencias/publica', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, telefono: telefono || null, numero_pedido: numero_pedido || null, mensaje })
+      })
+      const data = await res.json()
+
+      if (data?.ok) {
+        cerrarModalQueja()
+        toast('¡Gracias! Ya le llegó al propietario 🙏', 'ok')
+      } else {
+        toast(data?.error || 'Error al enviar tu mensaje', 'danger')
       }
     }
 

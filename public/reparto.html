@@ -171,6 +171,9 @@
                 <button class="btn btn-primary" onclick="verificarTransferencia('${cobro.id}')" style="flex-shrink:0;">
                   🏦 Confirmar transferencia
                 </button>` : ''}
+              <button class="btn btn-secondary" onclick="abrirModalIncidencia('${p.id}', ${p.numero_pedido})" style="flex-shrink:0;">
+                ⚠️
+              </button>
             </div>
           </div>`
       }).join('')

@@ -546,6 +546,9 @@
       <button class="btn btn-secondary btn-full" onclick="verFactura('${pedido.id}')">
         🧾 Ver factura
       </button>
+      <button class="btn btn-secondary btn-full" onclick="abrirModalIncidencia('${pedido.id}', ${pedido.numero_pedido})">
+        ⚠️ Reportar incidencia
+      </button>
       <button class="btn btn-primary btn-full" onclick="confirmarYCobrar('${pedido.id}', ${pedido.total}, 'efectivo')">
         💵 Confirmar — Cobrado en efectivo
       </button>
@@ -576,6 +579,9 @@
   acciones.innerHTML = `
     <button class="btn btn-secondary btn-full" onclick="verFactura('${pedido.id}')">
       🧾 Ver factura
+    </button>
+    <button class="btn btn-secondary btn-full" onclick="abrirModalIncidencia('${pedido.id}', ${pedido.numero_pedido})">
+      ⚠️ Reportar incidencia
     </button>
   ` + btns.map(b => `
     <button class="btn ${b.clase} btn-full" onclick="cambiarEstado('${pedido.id}','${b.estado}')">

@@ -178,6 +178,7 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
+    .incidencia-tipo-cliente { background: rgba(232,131,42,0.15); color: var(--accent); }
     .incidencia-detalle { flex: 1; }
     .incidencia-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
@@ -575,7 +576,14 @@
       renderIncidencias(data.incidencias)
     }
 
-    const TIPO_INCIDENCIA_LABEL = { error_cocina: '🔥 Error de cocina', otro: '📝 Otro' }
+    const TIPO_INCIDENCIA_LABEL = {
+      error_cocina: '🔥 Error de cocina',
+      entrega_fallida: '🛵 Entrega fallida',
+      stock_faltante: '📦 Falta de stock',
+      queja_cliente: '💬 Queja de cliente',
+      cancelacion: '✕ Cancelación',
+      otro: '📝 Otro'
+    }
 
     function renderIncidencias(incidencias) {
       const cont = document.getElementById('incidencias-card')
@@ -586,16 +594,17 @@
         `
         return
       }
+      const deClientes = incidencias.filter(i => i.origen === 'cliente').length
       cont.innerHTML = `
-        <h3>🗒️ Incidencias y quejas (${incidencias.length})</h3>
+        <h3>🗒️ Incidencias y quejas (${incidencias.length})${deClientes > 0 ? ` — ${deClientes} de clientes` : ''}</h3>
         <div style="margin-top:8px;">
           ${incidencias.map(i => `
             <div class="incidencia-row">
-              <span class="incidencia-tipo">${TIPO_INCIDENCIA_LABEL[i.tipo] || i.tipo}</span>
+              <span class="incidencia-tipo ${i.origen === 'cliente' ? 'incidencia-tipo-cliente' : ''}">${TIPO_INCIDENCIA_LABEL[i.tipo] || i.tipo}</span>
               <div class="incidencia-detalle">
                 ${i.descripcion || 'Sin descripción'}
                 <div class="incidencia-meta">
-                  ${i.numero_pedido ? `Pedido #${i.numero_pedido} · ` : ''}${i.reportado_por ? `reportado por ${i.reportado_por} · ` : ''}${formatFecha(i.creado_en)}
+                  ${i.origen === 'cliente' ? '👤 ' : '👨‍🍳 '}${i.numero_pedido ? `Pedido #${i.numero_pedido} · ` : ''}${i.reportado_por ? `${i.origen === 'cliente' ? '' : 'reportado por '}${i.reportado_por} · ` : ''}${formatFecha(i.creado_en)}
                 </div>
               </div>
             </div>

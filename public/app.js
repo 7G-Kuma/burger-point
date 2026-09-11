@@ -207,6 +207,73 @@ function toggleNavGestion(e) {
   document.getElementById('nav-gestion-menu')?.classList.toggle('abierto')
 }
 
+// ── REPORTAR INCIDENCIA (compartido entre caja/cocina/reparto) ──
+// Se inyecta en el DOM la primera vez que se usa, así ninguna página
+// necesita el HTML del modal de antemano — solo llamar a esta función.
+let _incidenciaPedidoId = null
+
+function abrirModalIncidencia(pedidoId, numeroPedido) {
+  let modal = document.getElementById('modal-incidencia-global')
+  if (!modal) {
+    modal = document.createElement('div')
+    modal.id = 'modal-incidencia-global'
+    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;align-items:center;justify-content:center;padding:20px;'
+    modal.innerHTML = `
+      <div class="card" style="width:100%;max-width:360px;">
+        <div class="card-header">
+          <h3>Reportar incidencia</h3>
+          <button onclick="cerrarModalIncidencia()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;">✕</button>
+        </div>
+        <p id="incidencia-modal-pedido" style="margin-bottom:12px;"></p>
+        <div class="input-group">
+          <label>Tipo</label>
+          <select id="incidencia-tipo">
+            <option value="error_cocina">Error de cocina</option>
+            <option value="entrega_fallida">Entrega fallida</option>
+            <option value="stock_faltante">Falta de stock</option>
+            <option value="queja_cliente">Queja del cliente</option>
+            <option value="cancelacion">Cancelación</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="input-group mt-8">
+          <label>Qué pasó</label>
+          <input type="text" id="incidencia-descripcion" placeholder="Describilo brevemente">
+        </div>
+        <button class="btn btn-primary btn-full mt-16" onclick="confirmarIncidencia()">Registrar</button>
+      </div>`
+    document.body.appendChild(modal)
+  }
+  _incidenciaPedidoId = pedidoId
+  document.getElementById('incidencia-modal-pedido').textContent = numeroPedido ? `Pedido #${numeroPedido}` : 'Sin pedido asociado'
+  document.getElementById('incidencia-tipo').value = 'error_cocina'
+  document.getElementById('incidencia-descripcion').value = ''
+  modal.style.display = 'flex'
+}
+
+function cerrarModalIncidencia() {
+  const modal = document.getElementById('modal-incidencia-global')
+  if (modal) modal.style.display = 'none'
+}
+
+async function confirmarIncidencia() {
+  const tipo = document.getElementById('incidencia-tipo').value
+  const descripcion = document.getElementById('incidencia-descripcion').value.trim()
+  if (!descripcion) { toast('Describí qué pasó', 'warning'); return }
+
+  const data = await api('/api/incidencias', {
+    method: 'POST',
+    body: JSON.stringify({ pedido_id: _incidenciaPedidoId, tipo, descripcion })
+  })
+
+  if (data?.ok) {
+    toast('Incidencia registrada ✓', 'ok')
+    cerrarModalIncidencia()
+  } else {
+    toast(data?.error || 'Error al registrar la incidencia', 'danger')
+  }
+}
+
 // Abre/cierra el menú de navegación colapsado en pantallas chicas
 function toggleNavMenu() {
   document.getElementById('nav-links')?.classList.toggle('abierto')

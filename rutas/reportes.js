@@ -237,13 +237,13 @@ router.get('/cierre', auth, requireSeccion('reportes'), async (req, res) => {
     total: canceladosRaw?.reduce((s, p) => s + totalItems(p.pedido_items), 0) || 0
   }
 
-  // Incidencias/quejas del rango — hoy solo las carga cocina (error de cocina
-  // u "otro"), pero cualquier rol que registre incidencias a futuro aparece
-  // acá igual. Visible para propietario y encargado (ambos dirigen al
+  // Incidencias/quejas del rango — las carga el staff (cualquier rol, sobre un
+  // pedido) o directamente el cliente desde el menú digital (con o sin pedido
+  // asociado). Visible para propietario y encargado (ambos dirigen al
   // personal — caja, cocina, reparto — y necesitan verlas para gestionar)
   const { data: incidenciasRaw } = await supabase
     .from('incidencias')
-    .select('id, tipo, descripcion, creado_en, pedidos ( numero_pedido ), usuarios ( nombre )')
+    .select('id, tipo, descripcion, creado_en, origen, cliente_nombre, cliente_telefono, pedidos ( numero_pedido ), usuarios ( nombre )')
     .gte('creado_en', desde + 'T00:00:00')
     .lte('creado_en', hasta + 'T23:59:59')
     .order('creado_en', { ascending: false })
@@ -253,8 +253,11 @@ router.get('/cierre', auth, requireSeccion('reportes'), async (req, res) => {
     tipo: i.tipo,
     descripcion: i.descripcion,
     creado_en: i.creado_en,
+    origen: i.origen || 'staff',
     numero_pedido: i.pedidos?.numero_pedido || null,
-    reportado_por: i.usuarios?.nombre || null
+    reportado_por: i.origen === 'cliente'
+      ? (i.cliente_nombre || 'Cliente') + (i.cliente_telefono ? ` (${i.cliente_telefono})` : '')
+      : (i.usuarios?.nombre || null)
   }))
 
   // "Lo esperado" — un solo día se compara contra el mismo día de la semana;
