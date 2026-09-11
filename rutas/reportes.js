@@ -97,4 +97,58 @@ router.get('/', auth, requireSeccion('reportes'), async (req, res) => {
   })
 })
 
+// GET /api/reportes/cierre?desde=&hasta= — cierre de caja: desglose por método
+// de pago, distinguiendo lo ya confirmado de lo que todavía está pendiente de
+// verificar (transferencias). Sin desde/hasta, cierra el día de hoy.
+router.get('/cierre', auth, requireSeccion('reportes'), async (req, res) => {
+  const supabase = getSupabase()
+  const hoy = new Date().toISOString().slice(0, 10)
+  const desde = req.query.desde || hoy
+  const hasta = req.query.hasta || desde
+
+  const { data: cobros, error } = await supabase
+    .from('cobros')
+    .select('id, monto, metodo, estado, creado_en, pedidos ( numero_pedido, canal )')
+    .gte('creado_en', desde + 'T00:00:00')
+    .lte('creado_en', hasta + 'T23:59:59')
+    .order('creado_en', { ascending: true })
+
+  if (error) return res.status(500).json({ error: error.message })
+
+  const metodos = ['efectivo', 'tarjeta', 'transferencia']
+  const porMetodo = metodos.map(metodo => {
+    const filas = cobros.filter(c => c.metodo === metodo)
+    const confirmados = filas.filter(c => c.estado !== 'pendiente')
+    const pendientes = filas.filter(c => c.estado === 'pendiente')
+    return {
+      metodo,
+      confirmado: { monto: confirmados.reduce((s, c) => s + Number(c.monto), 0), cantidad: confirmados.length },
+      pendiente: { monto: pendientes.reduce((s, c) => s + Number(c.monto), 0), cantidad: pendientes.length }
+    }
+  })
+
+  const totalConfirmado = porMetodo.reduce((s, m) => s + m.confirmado.monto, 0)
+  const totalPendiente = porMetodo.reduce((s, m) => s + m.pendiente.monto, 0)
+  const cantidadCobros = cobros.length
+
+  const { data: canceladosRaw } = await supabase
+    .from('pedidos')
+    .select('id, pedido_items ( cantidad, precio_unitario )')
+    .eq('estado', 'cancelado')
+    .gte('creado_en', desde + 'T00:00:00')
+    .lte('creado_en', hasta + 'T23:59:59')
+
+  const cancelados = {
+    cantidad: canceladosRaw?.length || 0,
+    total: canceladosRaw?.reduce((s, p) => s + totalItems(p.pedido_items), 0) || 0
+  }
+
+  res.json({
+    desde, hasta,
+    porMetodo, totalConfirmado, totalPendiente,
+    totalGeneral: totalConfirmado + totalPendiente,
+    cantidadCobros, cancelados
+  })
+})
+
 module.exports = router

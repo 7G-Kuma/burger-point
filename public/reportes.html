@@ -10,6 +10,21 @@
   <link rel="stylesheet" href="/css/estilos.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .tab-btn.active { border-color: var(--accent); background: rgba(232,131,42,0.1); color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
     .filtros {
       display: flex;
       gap: 10px;
@@ -91,6 +106,79 @@
     .ranking-valor { font-family: var(--mono); color: var(--accent); font-weight: 600; white-space: nowrap; }
     .ranking-barra-wrap { flex: 1; height: 6px; background: var(--surface2); border-radius: 4px; overflow: hidden; margin: 0 10px; }
     .ranking-barra { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 4px; }
+
+    /* ── CIERRE DE CAJA ── */
+    .metodo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .metodo-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow-card);
+    }
+    .metodo-card .metodo-nombre {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .metodo-card .metodo-monto { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--ok); }
+    .metodo-card .metodo-cant { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .metodo-card .metodo-pendiente {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--accent2);
+    }
+    .balance-card {
+      background: linear-gradient(135deg, rgba(232,131,42,0.1), rgba(245,200,66,0.05));
+      border: 1px solid rgba(232,131,42,0.3);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+    .balance-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; font-size: 14px; }
+    .balance-row.total { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 14px; font-size: 18px; font-weight: 700; }
+    .balance-row .label { color: var(--text-muted); }
+    .balance-row .valor { font-family: var(--mono); font-weight: 700; }
+
+    @media print {
+      .navbar, .filtros, .tabs, .btn { display: none !important; }
+      body { background: #fff !important; color: #000 !important; }
+      .balance-card, .metodo-card { border: 1px solid #ccc !important; background: #fff !important; }
+    }
+
+    /* ── COMPARATIVA ── */
+    .comp-controles { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .comp-periodos { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .comp-periodo-card {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      text-align: center;
+    }
+    .comp-periodo-card .comp-label { font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+    .comp-periodo-card .comp-monto { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
+    .comp-vs { font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+    .comp-diferencia {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .comp-diferencia.subida { color: var(--ok); }
+    .comp-diferencia.bajada { color: var(--danger); }
   </style>
 </head>
 <body>
@@ -112,51 +200,108 @@
       </div>
     </div>
 
-    <div class="filtros">
-      <div class="input-group">
-        <label>Desde</label>
-        <input type="date" id="f-desde">
-      </div>
-      <div class="input-group">
-        <label>Hasta</label>
-        <input type="date" id="f-hasta">
-      </div>
-      <div class="input-group">
-        <label>Canal</label>
-        <select id="f-canal">
-          <option value="">Todos</option>
-          <option value="presencial">Presencial</option>
-          <option value="whatsapp">WhatsApp</option>
-          <option value="delivery">Delivery</option>
-          <option value="online">Online (menú digital)</option>
-        </select>
-      </div>
-      <button class="btn btn-primary" onclick="cargarReportes()">Buscar</button>
-      <button class="btn btn-secondary" onclick="setRango(7)">Últimos 7 días</button>
-      <button class="btn btn-secondary" onclick="setRango(30)">Últimos 30 días</button>
+    <div class="tabs">
+      <div class="tab-btn active" onclick="setTab('ventas', this)">Ventas</div>
+      <div class="tab-btn" onclick="setTab('cierre', this)">Cierre de caja</div>
+      <div class="tab-btn" onclick="setTab('comparativa', this)">Comparativa</div>
     </div>
 
-    <div class="stats-grid" id="stats-grid"></div>
-
-    <div class="charts-grid">
-      <div class="chart-card">
-        <h3>Ventas por día</h3>
-        <div class="chart-wrap"><canvas id="chart-dias"></canvas></div>
+    <!-- VENTAS -->
+    <div class="tab-panel active" id="panel-ventas">
+      <div class="filtros">
+        <div class="input-group">
+          <label>Desde</label>
+          <input type="date" id="f-desde">
+        </div>
+        <div class="input-group">
+          <label>Hasta</label>
+          <input type="date" id="f-hasta">
+        </div>
+        <div class="input-group">
+          <label>Canal</label>
+          <select id="f-canal">
+            <option value="">Todos</option>
+            <option value="presencial">Presencial</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="delivery">Delivery</option>
+            <option value="online">Online (menú digital)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="cargarReportes()">Buscar</button>
+        <button class="btn btn-secondary" onclick="setRango(7)">Últimos 7 días</button>
+        <button class="btn btn-secondary" onclick="setRango(30)">Últimos 30 días</button>
       </div>
-      <div class="chart-card">
-        <h3>Ventas por canal</h3>
-        <div class="chart-wrap"><canvas id="chart-canal"></canvas></div>
+
+      <div class="stats-grid" id="stats-grid"></div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Ventas por día</h3>
+          <div class="chart-wrap"><canvas id="chart-dias"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Ventas por canal</h3>
+          <div class="chart-wrap"><canvas id="chart-canal"></canvas></div>
+        </div>
+      </div>
+
+      <div class="tablas-grid">
+        <div class="chart-card">
+          <h3>🏆 Productos más pedidos</h3>
+          <div id="ranking-productos"></div>
+        </div>
+        <div class="chart-card">
+          <h3>✨ Extras más elegidos</h3>
+          <div id="ranking-extras"></div>
+        </div>
       </div>
     </div>
 
-    <div class="tablas-grid">
-      <div class="chart-card">
-        <h3>🏆 Productos más pedidos</h3>
-        <div id="ranking-productos"></div>
+    <!-- CIERRE DE CAJA -->
+    <div class="tab-panel" id="panel-cierre">
+      <div class="filtros">
+        <div class="input-group">
+          <label>Desde</label>
+          <input type="date" id="c-desde">
+        </div>
+        <div class="input-group">
+          <label>Hasta</label>
+          <input type="date" id="c-hasta">
+        </div>
+        <button class="btn btn-primary" onclick="cargarCierre()">Buscar</button>
+        <button class="btn btn-secondary" onclick="setDiaCierre(0)">Hoy</button>
+        <button class="btn btn-secondary" onclick="setDiaCierre(1)">Ayer</button>
+        <button class="btn btn-secondary" onclick="window.print()">🖨️ Imprimir</button>
       </div>
+
+      <div class="metodo-grid" id="metodo-grid"></div>
+
+      <div class="balance-card" id="balance-card"></div>
+
+      <div class="chart-card" id="cancelados-card" style="margin-bottom:0;"></div>
+    </div>
+
+    <!-- COMPARATIVA -->
+    <div class="tab-panel" id="panel-comparativa">
+      <div class="comp-controles">
+        <div class="input-group">
+          <label>Comparar por</label>
+          <select id="comp-unidad" onchange="cambiarUnidadComp()">
+            <option value="dia">Día</option>
+            <option value="semana">Semana</option>
+            <option value="mes">Mes</option>
+          </select>
+        </div>
+        <button class="btn btn-secondary" onclick="moverComparativa(1)" style="align-self:flex-end;">‹ Período anterior</button>
+        <button class="btn btn-secondary" onclick="moverComparativa(-1)" id="btn-comp-siguiente" style="align-self:flex-end;">Siguiente ›</button>
+      </div>
+
+      <div class="comp-periodos" id="comp-periodos"></div>
+      <div class="comp-diferencia" id="comp-diferencia"></div>
+
       <div class="chart-card">
-        <h3>✨ Extras más elegidos</h3>
-        <div id="ranking-extras"></div>
+        <h3>Total vendido por período</h3>
+        <div class="chart-wrap"><canvas id="chart-comparativa"></canvas></div>
       </div>
     </div>
   </div>
@@ -181,7 +326,16 @@
       const usuario = getUsuario()
       document.getElementById('nombre-usuario').textContent = usuario.nombre
       setRango(30)
+      setDiaCierre(0)
+      cargarComparativa()
     })
+
+    function setTab(tab, el) {
+      document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'))
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+      el.classList.add('active')
+      document.getElementById('panel-' + tab).classList.add('active')
+    }
 
     function setRango(dias) {
       const hasta = new Date()
@@ -297,6 +451,181 @@
           <span class="ranking-valor">${f.etiqueta}</span>
         </div>
       `).join('')
+    }
+
+    // ── CIERRE DE CAJA ──
+
+    const METODO_LABEL = { efectivo: '💵 Efectivo', tarjeta: '💳 Tarjeta', transferencia: '🏦 Transferencia' }
+
+    function setDiaCierre(diasAtras) {
+      const fecha = new Date()
+      fecha.setDate(fecha.getDate() - diasAtras)
+      const iso = fecha.toISOString().slice(0, 10)
+      document.getElementById('c-desde').value = iso
+      document.getElementById('c-hasta').value = iso
+      cargarCierre()
+    }
+
+    async function cargarCierre() {
+      const params = new URLSearchParams()
+      const desde = document.getElementById('c-desde').value
+      const hasta = document.getElementById('c-hasta').value
+      if (desde) params.set('desde', desde)
+      if (hasta) params.set('hasta', hasta)
+
+      const data = await api('/api/reportes/cierre?' + params.toString())
+      if (!data) return
+      if (data.error) { toast(data.error, 'danger'); return }
+      renderCierre(data)
+    }
+
+    function renderCierre(data) {
+      document.getElementById('metodo-grid').innerHTML = data.porMetodo.map(m => `
+        <div class="metodo-card">
+          <div class="metodo-nombre">${METODO_LABEL[m.metodo] || m.metodo}</div>
+          <div class="metodo-monto">$${m.confirmado.monto.toLocaleString('es-AR')}</div>
+          <div class="metodo-cant">${m.confirmado.cantidad} cobro${m.confirmado.cantidad === 1 ? '' : 's'}</div>
+          ${m.pendiente.cantidad > 0 ? `
+            <div class="metodo-pendiente">⏳ $${m.pendiente.monto.toLocaleString('es-AR')} sin verificar (${m.pendiente.cantidad})</div>
+          ` : ''}
+        </div>
+      `).join('')
+
+      const rango = data.desde === data.hasta
+        ? new Date(data.desde + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
+        : `${new Date(data.desde + 'T00:00:00').toLocaleDateString('es-AR')} — ${new Date(data.hasta + 'T00:00:00').toLocaleDateString('es-AR')}`
+
+      document.getElementById('balance-card').innerHTML = `
+        <h3 style="margin-bottom:12px;">Balance — ${rango}</h3>
+        <div class="balance-row"><span class="label">Confirmado (efectivo + tarjeta + transferencias verificadas)</span><span class="valor text-ok">$${data.totalConfirmado.toLocaleString('es-AR')}</span></div>
+        <div class="balance-row"><span class="label">Pendiente de verificar</span><span class="valor" style="color:var(--accent2);">$${data.totalPendiente.toLocaleString('es-AR')}</span></div>
+        <div class="balance-row total"><span class="label">Total general</span><span class="valor">$${data.totalGeneral.toLocaleString('es-AR')}</span></div>
+      `
+
+      document.getElementById('cancelados-card').innerHTML = `
+        <h3>Pedidos cancelados</h3>
+        <p style="margin-top:8px;">${data.cancelados.cantidad} pedido${data.cancelados.cantidad === 1 ? '' : 's'} cancelado${data.cancelados.cantidad === 1 ? '' : 's'}${data.cancelados.total > 0 ? ` — hubieran sumado $${data.cancelados.total.toLocaleString('es-AR')}` : ''}</p>
+      `
+    }
+
+    // ── COMPARATIVA ──
+
+    let compUnidad = 'dia'
+    let compOffset = 0
+    let chartComparativa = null
+
+    function cambiarUnidadComp() {
+      compUnidad = document.getElementById('comp-unidad').value
+      compOffset = 0
+      cargarComparativa()
+    }
+
+    function moverComparativa(delta) {
+      compOffset = Math.max(0, compOffset + delta)
+      cargarComparativa()
+    }
+
+    // Devuelve { actual: {desde,hasta,label}, anterior: {desde,hasta,label} } según
+    // la unidad elegida (día/semana/mes) y cuántos períodos atrás (compOffset)
+    function calcularRangosComparativa() {
+      const iso = d => d.toISOString().slice(0, 10)
+
+      if (compUnidad === 'dia') {
+        const actual = new Date(); actual.setDate(actual.getDate() - compOffset)
+        const anterior = new Date(actual); anterior.setDate(anterior.getDate() - 1)
+        return {
+          actual: { desde: iso(actual), hasta: iso(actual), label: compOffset === 0 ? 'Hoy' : actual.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) },
+          anterior: { desde: iso(anterior), hasta: iso(anterior), label: compOffset === 0 ? 'Ayer' : anterior.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) }
+        }
+      }
+
+      if (compUnidad === 'semana') {
+        const finActual = new Date(); finActual.setDate(finActual.getDate() - compOffset * 7)
+        const inicioActual = new Date(finActual); inicioActual.setDate(inicioActual.getDate() - 6)
+        const finAnterior = new Date(inicioActual); finAnterior.setDate(finAnterior.getDate() - 1)
+        const inicioAnterior = new Date(finAnterior); inicioAnterior.setDate(inicioAnterior.getDate() - 6)
+        const fmt = d => d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+        return {
+          actual: { desde: iso(inicioActual), hasta: iso(finActual), label: `${fmt(inicioActual)} — ${fmt(finActual)}` },
+          anterior: { desde: iso(inicioAnterior), hasta: iso(finAnterior), label: `${fmt(inicioAnterior)} — ${fmt(finAnterior)}` }
+        }
+      }
+
+      // mes
+      const base = new Date()
+      const mesActualIdx = base.getMonth() - compOffset
+      const inicioActual = new Date(base.getFullYear(), mesActualIdx, 1)
+      const finActual = new Date(base.getFullYear(), mesActualIdx + 1, 0)
+      const inicioAnterior = new Date(base.getFullYear(), mesActualIdx - 1, 1)
+      const finAnterior = new Date(base.getFullYear(), mesActualIdx, 0)
+      const fmtMes = d => d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+      return {
+        actual: { desde: iso(inicioActual), hasta: iso(finActual), label: fmtMes(inicioActual) },
+        anterior: { desde: iso(inicioAnterior), hasta: iso(finAnterior), label: fmtMes(inicioAnterior) }
+      }
+    }
+
+    async function cargarComparativa() {
+      const { actual, anterior } = calcularRangosComparativa()
+
+      const [dataActual, dataAnterior] = await Promise.all([
+        api(`/api/reportes?desde=${actual.desde}&hasta=${actual.hasta}`),
+        api(`/api/reportes?desde=${anterior.desde}&hasta=${anterior.hasta}`)
+      ])
+      if (!dataActual || !dataAnterior) return
+
+      renderComparativa(actual, dataActual, anterior, dataAnterior)
+    }
+
+    function renderComparativa(actual, dataActual, anterior, dataAnterior) {
+      document.getElementById('comp-periodos').innerHTML = `
+        <div class="comp-periodo-card">
+          <div class="comp-label">${anterior.label}</div>
+          <div class="comp-monto">$${dataAnterior.totalVentas.toLocaleString('es-AR')}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${dataAnterior.totalPedidos} pedidos</div>
+        </div>
+        <div class="comp-vs">VS</div>
+        <div class="comp-periodo-card">
+          <div class="comp-label">${actual.label}</div>
+          <div class="comp-monto">$${dataActual.totalVentas.toLocaleString('es-AR')}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${dataActual.totalPedidos} pedidos</div>
+        </div>
+      `
+
+      const diffEl = document.getElementById('comp-diferencia')
+      if (dataAnterior.totalVentas === 0) {
+        diffEl.textContent = dataActual.totalVentas > 0 ? '📈 Sin ventas en el período anterior para comparar' : 'Sin ventas en ninguno de los dos períodos'
+        diffEl.className = 'comp-diferencia'
+      } else {
+        const variacion = ((dataActual.totalVentas - dataAnterior.totalVentas) / dataAnterior.totalVentas) * 100
+        const subio = variacion >= 0
+        diffEl.textContent = `${subio ? '📈' : '📉'} ${subio ? '+' : ''}${variacion.toFixed(1)}% respecto al período anterior`
+        diffEl.className = 'comp-diferencia ' + (subio ? 'subida' : 'bajada')
+      }
+
+      const ctx = document.getElementById('chart-comparativa')
+      if (chartComparativa) chartComparativa.destroy()
+      chartComparativa = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: [anterior.label, actual.label],
+          datasets: [{
+            data: [dataAnterior.totalVentas, dataActual.totalVentas],
+            backgroundColor: [COLOR_TEXT_MUTED, COLOR_ACCENT],
+            borderRadius: 6,
+            maxBarThickness: 90
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: COLOR_TEXT_MUTED, font: { size: 11 } }, grid: { display: false } },
+            y: { ticks: { color: COLOR_TEXT_MUTED, font: { size: 10 }, callback: v => '$' + v.toLocaleString('es-AR') }, grid: { color: COLOR_BORDER } }
+          }
+        }
+      })
     }
   </script>
 </body>
