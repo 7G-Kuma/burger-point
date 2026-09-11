@@ -4,11 +4,13 @@ Analista/Desarrollador: Pedro. Stack: Node.js · Express 4 · Supabase (PostgreS
 
 **URL en producción**: https://burger-point-vtlu.onrender.com — se duerme tras 15 min sin tráfico, primer request siguiente tarda 30-60s en responder (comportamiento normal del plan free, no es un error). Es el link que se comparte con clientes: la raíz del sitio sirve el **menú digital** directamente (`GET /` → `menu.html`, desde el 2026-09-10). El **login de staff** vive en `/index.html` — no es la puerta de entrada por defecto, se llega por el link "🔑 Soy del staff" en el menú o escribiendo la URL directo.
 
-## Estado general (al 2026-09-10)
+## Estado general (al 2026-09-11)
 
-Las 6 fases del plan original (configuración, login+roles, panel, pedidos/caja, cocina+reparto, cobros+deploy) están completas y en producción desde el 2026-09-03. Desde entonces se agregó bastante más de lo planeado originalmente — stock visible, rediseño visual + logo, seguimiento del cliente, registro/historial admin, factura numerada persistente, inventario con ingresos, menú digital de autoservicio con auto-notificación a caja, contenido real (descripciones + fotos) del menú, un rol de encargado real con permisos por sección y notificación de actividad al propietario, precios editables + promociones con descuento automático, un pulido general de la experiencia móvil, personalización de productos (extras) + variantes de bebida por marca y tamaño, y cuentas de cliente livianas + panel de fidelización. Cada uno tiene su propia sección fechada más abajo, en orden cronológico — es la forma más confiable de saber qué existe y por qué.
+Las 6 fases del plan original (configuración, login+roles, panel, pedidos/caja, cocina+reparto, cobros+deploy) están completas y en producción desde el 2026-09-03. Desde entonces se agregó bastante más de lo planeado originalmente — stock visible, rediseño visual + logo, seguimiento del cliente, registro/historial admin, factura numerada persistente, inventario con ingresos, menú digital de autoservicio con auto-notificación a caja, contenido real (descripciones + fotos) del menú, un rol de encargado real con permisos por sección y notificación de actividad al propietario, precios editables + promociones con descuento automático, un pulido general de la experiencia móvil, personalización de productos (extras) + variantes de bebida por marca y tamaño, cuentas de cliente livianas + panel de fidelización, y un panel de reportes + rediseño visual del menú digital y del navbar. Cada uno tiene su propia sección fechada más abajo, en orden cronológico — es la forma más confiable de saber qué existe y por qué.
 
-**Para retomar el trabajo**: la ronda de mejoras que el usuario pidió el 2026-09-10 está completa (los 5 frentes: pulido móvil, separar el menú digital del login de staff, personalización de productos + variantes de bebida, y cuentas de cliente + fidelización — ver las secciones fechadas de ese día más abajo). No queda ningún pendiente conocido — para el próximo trabajo hay que preguntarle al usuario qué necesita.
+**Para retomar el trabajo**: no queda ningún pendiente conocido — para el próximo trabajo hay que preguntarle al usuario qué necesita. Ver la sección fechada 2026-09-11 para lo último que se agregó (reportes + categorías + navbar con desplegable "Gestión").
+
+**Pendiente de que el usuario mande**: fotos de las 5 marcas de bebida (`coca-cola.jpg`, `coca-cola-zero.jpg`, `sprite.jpg`, `fanta.jpg`, `pepsi.jpg` en `public/img/productos/`, mismo criterio de `slugify()` que ya usa el resto del menú) — mientras tanto se ve el fallback "Foto próximamente", no es un error.
 
 Probado en vivo el 2026-09-03: caja crea pedido → cobro por transferencia queda pendiente → cocina prepara y marca listo → reparto verifica la transferencia y marca entregado → panel refleja ventas/cobrado/alertas correctamente. Repetido con la `service_role` key activa y confirmado que el descuento de stock ahora funciona (`Queso azul` 2.00→1.00 y `Carne (medallón)` 80.00→79.00 al confirmar un Blue Cheese).
 
@@ -32,6 +34,7 @@ rutas/
   menu.js            # GET /api/menu, POST /api/menu/pedido — PÚBLICO, sin auth, menú digital de autoservicio
   extras.js          # GET/POST/PATCH/DELETE /api/extras — aderezos/agregados por producto, solo propietario/encargado
   clientes.js        # GET /buscar + POST (públicos, para el menú digital) + GET/PATCH admin + exporta upsertCliente()
+  reportes.js        # GET /api/reportes — ventas por día/canal/categoría, top productos y extras, solo propietario/encargado
   permisos.js        # GET /api/permisos (cualquier logueado), PATCH /api/permisos/:seccion (solo propietario)
   actividad.js       # GET /api/actividad (solo propietario) + exporta registrarActividad(), usada por otras rutas
   requireSeccion.js  # middleware factory — bloquea al encargado si el propietario no le habilitó esa sección
@@ -49,6 +52,7 @@ public/
   permisos.html      # solo propietario — habilita/bloquea qué secciones puede ver el encargado
   productos.html     # propietario/encargado — editar precios/visibilidad del menú, promociones y extras
   clientes.html      # propietario/encargado — registro de clientes, frecuencia, gastado y cumpleaños
+  reportes.html      # propietario/encargado — ventas por día/canal, top productos y extras (gráficos con Chart.js)
 .claude/launch.json  # config para levantar el servidor desde el preview del editor
 ```
 
@@ -187,7 +191,17 @@ Con esto se completaron las seis cosas grandes que el usuario pidió de una: inv
 - **`clientes.html`** (propietario/encargado): tabla con pedidos, total gastado y última visita por cliente (calculado en el servidor recorriendo `pedidos`+`pedido_items` de cada uno, no hay contadores cacheados), chip "Frecuente" desde 3 pedidos, y aviso de cumpleaños dentro de los próximos 30 días. **Importante**: esto es un tablero de consulta, no manda nada solo — no hay integración de WhatsApp/SMS/email en el proyecto, así que la idea es que el propietario vea la lista y contacte a mano. Si en algún momento se quiere automatizar el envío hay que sumar un servicio externo.
 - Probado de punta a punta en local y producción: perfil nuevo con fecha de nacimiento → reconocimiento automático al volver a entrar (sin loguearse de nuevo) → pedido queda linkeado al cliente en la base → aparece correctamente en el panel de Clientes con sus stats.
 
-Con esto se completó la ronda de 5 mejoras que el usuario pidió el 2026-09-10. No queda ningún pendiente conocido.
+Con esto se completó la ronda de 5 mejoras que el usuario pidió el 2026-09-10.
+
+## Panel de reportes + rediseño del menú digital y del navbar (2026-09-11)
+
+- **`productos.categoria`** (columna nueva: `Hamburguesas`/`Papas`/`Bebidas`/`Otros`, default `'Otros'`): se hizo backfill sobre los productos existentes y es editable desde la pestaña Precios de `productos.html`. `menu.js` la incluye en `GET /api/menu`.
+- **`reportes.html`** (propietario/encargado, permiso nuevo `reportes`): filtros por rango de fecha (atajos "últimos 7/30 días") y canal. Tarjetas de total vendido, pedidos, ticket promedio y cancelados; gráfico de ventas por día (línea) y por canal (dona) con **Chart.js vía CDN** (`cdnjs.cloudflare.com/.../Chart.js/4.4.1/chart.umd.min.js` — ojo, la versión importa: `4.4.4` no existe en cdnjs y tira 404 silencioso, se verificó cuál versión existía antes de fijarla); rankings de productos más pedidos y extras más elegidos con barras. Todo el cálculo se hace en `rutas/reportes.js` recorriendo `pedidos`+`pedido_items`+`pedido_item_extras` en JS, mismo patrón que ya se usaba en `registro.js` — no hay tablas de agregación ni cache.
+- **`menu.html` reorganizado por categoría**: antes era una sola grilla plana de ~30 productos mezclados (hamburguesas, papas y las 5 marcas de bebida revueltas alfabéticamente). Ahora se agrupa por `categoria` con su propio encabezado de sección (`🍔 Hamburguesas`, `🍟 Papas`, `🥤 Bebidas`) en el orden fijo `ORDEN_CATEGORIAS`. Se agregó además un **hero** arriba (logo grande con glow, título grande, tagline) reemplazando el header chico que tenía antes — más parecido a la landing de un restaurante real que a un formulario.
+- **Navbar reorganizado en "Gestión"**: con Clientes y Reportes sumados el navbar ya tenía 10 links y se amontonaba/envolvía incluso en desktop. Se separó en operativas (Panel/Caja/Cocina/Reparto, siempre visibles) + un desplegable `⚙️ Gestión ▾` que agrupa Inventario/Registro/Precios/Clientes/Reportes/Permisos (`renderNavSwitcher()` en `app.js`, mismo patrón de "cerrar al tocar afuera" que ya tenía el menú hamburguesa de mobile). En mobile el desplegable se aplana dentro del mismo panel colapsable con un separador "GESTIÓN" en vez de abrir un popup encima.
+- **Usuario `encargado@burgerpoint.com`** creado como cuenta demo permanente (antes solo existían usuarios de prueba que se creaban y borraban) — ver tabla de credenciales más abajo.
+- Probado en desktop y mobile, local y producción: menú por categorías, reportes con datos reales de la base (gráficos, rankings), y el desplegable Gestión abriendo/cerrando bien y filtrando correctamente según permisos del encargado.
+- **Pendiente de que el usuario mande**: fotos de las 5 marcas de bebida (ver nota al principio del documento).
 
 ## Notas técnicas conocidas
 
@@ -213,3 +227,6 @@ Con esto se completó la ronda de 5 mejoras que el usuario pidió el 2026-09-10.
 | Caja (María) | caja@burgerpoint.com | test1234 *(reseteada para pruebas el 2026-09-03)* |
 | Cocina (Carola) | cocina@burgerpoint.com | test1234 *(reseteada para pruebas el 2026-09-03)* |
 | Reparto (Juan) | reparto@burgerpoint.com | test1234 *(reseteada para pruebas el 2026-09-03)* |
+| Encargado | encargado@burgerpoint.com | test1234 *(usuario creado el 2026-09-11, a pedido del usuario para tener las 5 credenciales)* |
+
+Estas son las únicas credenciales reales que existen — no hay una por cada empleado, es una cuenta demo por rol. Si en algún momento se necesitan usuarios reales por persona, hay que darlos de alta desde Supabase (no hay una pantalla de alta de usuarios en el sistema todavía).
