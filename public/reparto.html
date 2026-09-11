@@ -9,13 +9,65 @@
   <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
   <link rel="stylesheet" href="/css/estilos.css">
   <style>
+    .reparto-wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+
+    .reparto-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .reparto-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      box-shadow: var(--shadow-card);
+    }
+    .reparto-stat .label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    .reparto-stat .valor {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .reparto-stat .valor.accent { color: var(--accent2); }
+    .reparto-stat .valor.ok { color: var(--ok); }
+
+    .reparto-filtros {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .reparto-filtro {
+      padding: 7px 15px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .reparto-filtro.active {
+      border-color: var(--accent);
+      background: rgba(255,107,0,0.12);
+      color: var(--accent2);
+    }
+
     .reparto-list {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 24px;
     }
     .pedido-reparto {
       background: var(--surface);
@@ -89,21 +141,52 @@
     </div>
   </nav>
 
-  <div class="page-header" style="max-width:720px;margin:24px auto 0;padding:0 24px;">
-    <h2>Entregas del turno</h2>
-    <button class="btn btn-secondary" onclick="cargarPedidos()" style="font-size:12px;padding:6px 12px;">↻</button>
-  </div>
+  <div class="reparto-wrap">
+    <div class="page-header">
+      <h2>Entregas del turno</h2>
+      <button class="btn btn-secondary" onclick="cargarPedidos()" style="font-size:12px;padding:6px 12px;">↻</button>
+    </div>
 
-  <div class="reparto-list" id="reparto-list">
-    <div class="empty-state">
-      <div class="empty-icon">🛵</div>
-      <h3>Cargando entregas...</h3>
+    <div class="reparto-stats">
+      <div class="reparto-stat">
+        <div class="label">🛵 En camino</div>
+        <div class="valor accent" id="stat-en-camino">0</div>
+      </div>
+      <div class="reparto-stat">
+        <div class="label">🏠 Retiro en local</div>
+        <div class="valor accent" id="stat-retiro">0</div>
+      </div>
+      <div class="reparto-stat">
+        <div class="label">💸 Cobro pendiente</div>
+        <div class="valor" id="stat-pendiente-cobro">0</div>
+      </div>
+      <div class="reparto-stat">
+        <div class="label">✓ Entregados hoy</div>
+        <div class="valor ok" id="stat-entregados">0</div>
+      </div>
+    </div>
+
+    <div class="reparto-filtros">
+      <div class="reparto-filtro active" onclick="setFiltroReparto('pendientes', this)">Por entregar</div>
+      <div class="reparto-filtro" onclick="setFiltroReparto('delivery', this)">🛵 Delivery</div>
+      <div class="reparto-filtro" onclick="setFiltroReparto('retiro', this)">🏠 Retiro</div>
+      <div class="reparto-filtro" onclick="setFiltroReparto('entregados', this)">Entregados hoy</div>
+    </div>
+
+    <div class="reparto-list" id="reparto-list">
+      <div class="empty-state">
+        <div class="empty-icon">🛵</div>
+        <h3>Cargando entregas...</h3>
+      </div>
     </div>
   </div>
 
   <div id="toast"></div>
   <script src="/app.js"></script>
   <script>
+    let todosPedidosReparto = []
+    let filtroReparto = 'pendientes'
+
     window.addEventListener('load', () => {
       if (!requireAuth(['reparto', 'encargado', 'propietario'], 'reparto')) return
       renderNavSwitcher()
@@ -113,13 +196,37 @@
       setInterval(cargarPedidos, 15000)
     })
 
+    function setFiltroReparto(filtro, el) {
+      filtroReparto = filtro
+      document.querySelectorAll('.reparto-filtro').forEach(t => t.classList.remove('active'))
+      el.classList.add('active')
+      renderListaReparto()
+    }
+
     async function cargarPedidos() {
       const data = await api('/api/pedidos?limite=100')
       if (!data) return
 
-      const pedidos = (data.pedidos || []).filter(p =>
+      todosPedidosReparto = (data.pedidos || []).filter(p =>
         ['listo', 'entregado'].includes(p.estado)
       )
+
+      const listos = todosPedidosReparto.filter(p => p.estado === 'listo')
+      document.getElementById('stat-en-camino').textContent = listos.filter(p => p.canal === 'delivery').length
+      document.getElementById('stat-retiro').textContent = listos.filter(p => p.canal !== 'delivery').length
+      document.getElementById('stat-entregados').textContent = todosPedidosReparto.filter(p => p.estado === 'entregado').length
+      document.getElementById('stat-pendiente-cobro').textContent =
+        todosPedidosReparto.filter(p => p.cobros?.[0]?.estado === 'pendiente').length
+
+      renderListaReparto()
+    }
+
+    function renderListaReparto() {
+      let pedidos = todosPedidosReparto
+      if (filtroReparto === 'pendientes')      pedidos = pedidos.filter(p => p.estado === 'listo')
+      else if (filtroReparto === 'delivery')   pedidos = pedidos.filter(p => p.estado === 'listo' && p.canal === 'delivery')
+      else if (filtroReparto === 'retiro')     pedidos = pedidos.filter(p => p.estado === 'listo' && p.canal !== 'delivery')
+      else if (filtroReparto === 'entregados') pedidos = pedidos.filter(p => p.estado === 'entregado')
 
       const lista = document.getElementById('reparto-list')
 

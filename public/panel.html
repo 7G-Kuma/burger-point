@@ -9,56 +9,110 @@
   <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
   <link rel="stylesheet" href="/css/estilos.css">
   <style>
+    .main-content.dashboard { max-width: 1240px; }
+
+    .page-header .header-live {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 0 3px rgba(76,175,125,0.2);
+      flex-shrink: 0;
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .header-reloj {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 32px;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
     }
     .stat-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.2s;
     }
+    .stat-card:hover { border-color: rgba(255,107,0,0.3); }
     .stat-label {
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 8px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
     }
     .stat-value {
-      font-size: 32px;
-      font-weight: 700;
+      font-family: var(--font-display);
+      font-size: 30px;
+      font-weight: 800;
       color: var(--text);
       line-height: 1;
     }
     .stat-value.ok     { color: var(--ok); }
-    .stat-value.accent { color: var(--accent); }
+    .stat-value.accent { color: var(--accent2); }
     .stat-value.warn   { color: var(--accent2); }
+    .stat-value.danger { color: var(--danger); }
     .stat-sub {
       font-size: 12px;
       color: var(--text-muted);
-      margin-top: 6px;
+      margin-top: 8px;
     }
+
+    /* ── LAYOUT DE 2 COLUMNAS: feed principal + sidebar de widgets ── */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.7fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
     .section-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
+      gap: 10px;
     }
     .section-header h2 {
       font-size: 16px;
-      font-weight: 600;
-    }
-    .alertas-list {
+      font-weight: 700;
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 8px;
-      margin-bottom: 32px;
     }
+    .section-count {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2px 10px;
+    }
+
     .no-alertas {
       text-align: center;
       padding: 24px;
@@ -66,34 +120,125 @@
       font-size: 13px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: var(--radius-lg);
     }
-    .actividad-list {
+
+    /* ── WIDGET (tarjeta de sidebar) ── */
+    .widget {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .widget-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
       display: flex;
-      flex-direction: column;
-      gap: 0;
-      margin-bottom: 32px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
     }
+    .widget-header h2 { font-size: 14px; }
+    .widget-body { padding: 6px 0; }
+    .widget-body.pad { padding: 14px 18px; }
+    .widget-empty {
+      padding: 20px 18px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .alertas-list { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+    .alertas-list .alert { margin-bottom: 0; }
+
+    .actividad-list { display: flex; flex-direction: column; }
     .actividad-item {
       display: flex;
       align-items: baseline;
-      gap: 12px;
-      padding: 12px 16px;
+      gap: 10px;
+      padding: 11px 18px;
       border-bottom: 1px solid var(--border);
       font-size: 13px;
     }
     .actividad-item:last-child { border-bottom: none; }
     .actividad-item .quien {
-      font-weight: 600;
-      color: var(--accent);
+      font-weight: 700;
+      color: var(--accent2);
       flex-shrink: 0;
     }
     .actividad-item .accion { color: var(--text); flex: 1; }
     .actividad-item .cuando {
       font-family: var(--mono);
       font-size: 11px;
-      color: var(--text-muted);
+      color: var(--text-dim);
       flex-shrink: 0;
+    }
+
+    .accesos-list { display: flex; flex-direction: column; }
+    .acceso-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .acceso-link:last-child { border-bottom: none; }
+    .acceso-link:hover { background: var(--surface2); }
+    .acceso-link .flecha { color: var(--text-dim); }
+
+    /* ── FEED DE PEDIDOS (tarjetas en vivo, reemplaza la tabla plana) ── */
+    .pedidos-feed { display: flex; flex-direction: column; gap: 10px; }
+    .pedido-feed-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .pedido-feed-card.activo { border-left-color: var(--accent); }
+    .pedido-feed-card .num {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--accent2);
+      min-width: 52px;
+    }
+    .pedido-feed-card .info { flex: 1; min-width: 140px; }
+    .pedido-feed-card .canal {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: capitalize;
+      margin-top: 2px;
+    }
+    .pedido-feed-card .total {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .pedido-feed-card .hora {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
@@ -111,13 +256,17 @@
     </div>
   </nav>
 
-  <div class="main-content">
+  <div class="main-content dashboard">
 
     <!-- HEADER -->
     <div class="page-header">
       <div>
         <h1>Panel del día</h1>
-        <p id="fecha-hoy" style="margin-top:4px;"></p>
+        <div class="header-live mt-8">
+          <span class="live-dot"></span>
+          <p id="fecha-hoy" style="margin:0;"></p>
+          <span class="header-reloj" id="header-reloj"></span>
+        </div>
       </div>
       <button class="btn btn-secondary" onclick="cargarDatos()" style="font-size:13px;">
         ↻ Actualizar
@@ -127,69 +276,87 @@
     <!-- ESTADÍSTICAS -->
     <div class="stats-grid" id="stats-grid">
       <div class="stat-card">
-        <div class="stat-label">Ventas del día</div>
+        <div class="stat-label">💰 Ventas del día</div>
         <div class="stat-value ok" id="stat-ventas">$0</div>
         <div class="stat-sub" id="stat-pedidos-count">0 pedidos</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Cobrado</div>
+        <div class="stat-label">✅ Cobrado</div>
         <div class="stat-value accent" id="stat-cobrado">$0</div>
-        <div class="stat-sub" id="stat-pendiente">$0 pendiente</div>
+        <div class="stat-sub">Confirmado en caja</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Pedidos activos</div>
+        <div class="stat-label">⏳ Por verificar</div>
+        <div class="stat-value warn" id="stat-pendiente">$0</div>
+        <div class="stat-sub">Transferencias sin confirmar</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">🔥 Pedidos activos</div>
         <div class="stat-value warn" id="stat-activos">0</div>
         <div class="stat-sub">En proceso ahora</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Cancelados hoy</div>
-        <div class="stat-value" id="stat-cancelados">0</div>
+        <div class="stat-label">✕ Cancelados</div>
+        <div class="stat-value danger" id="stat-cancelados">0</div>
         <div class="stat-sub">Del día de hoy</div>
       </div>
     </div>
 
-    <!-- ALERTAS -->
-    <div class="section-header">
-      <h2>⚠️ Alertas activas</h2>
-      <a href="/inventario.html" class="btn btn-secondary" style="font-size:13px;">📦 Ver inventario</a>
-    </div>
-    <div class="alertas-list" id="alertas-list">
-      <div class="no-alertas">Cargando alertas...</div>
-    </div>
+    <!-- LAYOUT PRINCIPAL: feed de pedidos + widgets laterales -->
+    <div class="dashboard-grid">
 
-    <!-- ACTIVIDAD DEL ENCARGADO (solo propietario) -->
-    <div id="bloque-actividad" style="display:none;">
-      <div class="section-header">
-        <h2>🔐 Actividad del encargado</h2>
-        <a href="/permisos.html" class="btn btn-secondary" style="font-size:13px;">Editar permisos</a>
+      <!-- COLUMNA PRINCIPAL -->
+      <div>
+        <div class="section-header">
+          <h2>🧾 Pedidos en vivo <span class="section-count" id="pedidos-count">0</span></h2>
+          <a href="/caja.html" class="btn btn-secondary" style="font-size:13px;">Ir a caja</a>
+        </div>
+        <div class="pedidos-feed" id="pedidos-feed">
+          <div class="no-alertas">Cargando pedidos...</div>
+        </div>
       </div>
-      <div class="actividad-list" id="actividad-list">
-        <div class="no-alertas">Cargando actividad...</div>
-      </div>
-    </div>
 
-    <!-- PEDIDOS RECIENTES -->
-    <div class="section-header">
-      <h2>Pedidos recientes</h2>
-      <a href="/caja.html" class="btn btn-secondary" style="font-size:13px;">Ver todos</a>
-    </div>
-    <div class="card">
-      <div class="tabla-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Canal</th>
-              <th>Estado</th>
-              <th>Total</th>
-              <th>Hora</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-pedidos">
-            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Cargando pedidos...</td></tr>
-          </tbody>
-        </table>
+      <!-- SIDEBAR DE WIDGETS -->
+      <div>
+        <div class="widget">
+          <div class="widget-header">
+            <h2>⚠️ Alertas activas</h2>
+            <a href="/inventario.html" class="btn btn-secondary" style="font-size:11px;padding:5px 10px;">📦 Inventario</a>
+          </div>
+          <div class="widget-body">
+            <div class="alertas-list" id="alertas-list">
+              <div class="widget-empty">Cargando alertas...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="widget" id="bloque-actividad" style="display:none;">
+          <div class="widget-header">
+            <h2>🔐 Actividad del encargado</h2>
+            <a href="/permisos.html" class="btn btn-secondary" style="font-size:11px;padding:5px 10px;">Permisos</a>
+          </div>
+          <div class="widget-body">
+            <div class="actividad-list" id="actividad-list">
+              <div class="widget-empty">Cargando actividad...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="widget">
+          <div class="widget-header">
+            <h2>⚡ Accesos rápidos</h2>
+          </div>
+          <div class="widget-body">
+            <div class="accesos-list">
+              <a href="/registro.html" class="acceso-link">📖 Registro de pedidos <span class="flecha">→</span></a>
+              <a href="/inventario.html" class="acceso-link">📦 Inventario <span class="flecha">→</span></a>
+              <a href="/reportes.html" class="acceso-link">📈 Reportes y cierre de caja <span class="flecha">→</span></a>
+              <a href="/clientes.html" class="acceso-link">👥 Clientes <span class="flecha">→</span></a>
+            </div>
+          </div>
+        </div>
       </div>
+
     </div>
 
   </div>
@@ -217,10 +384,17 @@
       }
 
       cargarDatos()
+      actualizarReloj()
 
       // Actualiza cada 60 segundos
       setInterval(cargarDatos, 60000)
+      setInterval(actualizarReloj, 1000)
     })
+
+    function actualizarReloj() {
+      document.getElementById('header-reloj').textContent =
+        '· ' + new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    }
 
     async function cargarDatos() {
       const tareas = [
@@ -262,7 +436,7 @@
       document.getElementById('stat-cobrado').textContent =
         '$' + (data.cobrado || 0).toLocaleString('es-AR')
       document.getElementById('stat-pendiente').textContent =
-        '$' + (data.pendiente || 0).toLocaleString('es-AR') + ' pendiente'
+        '$' + (data.pendiente || 0).toLocaleString('es-AR')
       document.getElementById('stat-activos').textContent =
         data.activos || 0
       document.getElementById('stat-cancelados').textContent =
@@ -273,22 +447,30 @@
       const data = await api('/api/pedidos?limite=8')
       if (!data || !data.pedidos) return
 
-      const tbody = document.getElementById('tabla-pedidos')
+      const feed = document.getElementById('pedidos-feed')
+      document.getElementById('pedidos-count').textContent = data.pedidos.length
 
       if (data.pedidos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">Sin pedidos hoy</td></tr>`
+        feed.innerHTML = `<div class="no-alertas">Sin pedidos hoy</div>`
         return
       }
 
-      tbody.innerHTML = data.pedidos.map(p => `
-        <tr>
-          <td class="mono" style="color:var(--accent);">#${p.numero_pedido}</td>
-          <td style="text-transform:capitalize;">${p.canal}</td>
-          <td>${badgeEstado(p.estado)}</td>
-          <td class="mono">$${(p.total || 0).toLocaleString('es-AR')}</td>
-          <td style="color:var(--text-muted);font-size:12px;">${formatFecha(p.creado_en)}</td>
-        </tr>
-      `).join('')
+      const ACTIVOS = ['recibido', 'confirmado', 'en_preparacion', 'listo']
+
+      feed.innerHTML = data.pedidos.map(p => {
+        const activo = ACTIVOS.includes(p.estado)
+        const clienteTxt = p.cliente_nombre ? ` · ${p.cliente_nombre}` : ''
+        return `
+        <div class="pedido-feed-card ${activo ? 'activo' : ''}">
+          <span class="num">#${p.numero_pedido}</span>
+          <div class="info">
+            ${badgeEstado(p.estado)}
+            <div class="canal">${p.canal}${clienteTxt}</div>
+          </div>
+          <span class="total">$${(p.total || 0).toLocaleString('es-AR')}</span>
+          <span class="hora">${formatFecha(p.creado_en)}</span>
+        </div>`
+      }).join('')
     }
 
     async function cargarAlertas() {

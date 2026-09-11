@@ -162,6 +162,73 @@
       background: rgba(255,107,0,0.1);
       color: var(--accent);
     }
+
+    /* ── TIRA DE TURNO (resumen del día, arriba de todo) ── */
+    .turno-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-card);
+    }
+    .turno-item { flex: 1; min-width: 130px; }
+    .turno-item .label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    .turno-item .valor {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .turno-item .valor.ok { color: var(--ok); }
+    .turno-item .valor.accent { color: var(--accent2); }
+
+    /* ── BUSCADOR + FILTRO POR CATEGORÍA ── */
+    .buscador-productos { margin-bottom: 12px; }
+    .buscador-productos input {
+      width: 100%;
+      background: #0f1115;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      padding: 11px 14px;
+      outline: none;
+    }
+    .buscador-productos input:focus { border-color: var(--accent); }
+    .categoria-filtros {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .cat-pill {
+      padding: 7px 15px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .cat-pill.active {
+      border-color: var(--accent);
+      background: rgba(255,107,0,0.12);
+      color: var(--accent2);
+    }
     .pedidos-recientes {
       display: flex;
       flex-direction: column;
@@ -259,6 +326,22 @@
 
     <!-- COLUMNA IZQUIERDA: productos + pedidos -->
     <div>
+      <!-- Resumen del turno -->
+      <div class="turno-bar">
+        <div class="turno-item">
+          <div class="label">🧾 Pedidos hoy</div>
+          <div class="valor" id="turno-pedidos">0</div>
+        </div>
+        <div class="turno-item">
+          <div class="label">💰 Vendido hoy</div>
+          <div class="valor ok" id="turno-vendido">$0</div>
+        </div>
+        <div class="turno-item">
+          <div class="label">⏳ Sin confirmar</div>
+          <div class="valor accent" id="turno-sinconfirmar">0</div>
+        </div>
+      </div>
+
       <div class="page-header">
         <h2>Nuevo Pedido</h2>
       </div>
@@ -269,6 +352,14 @@
         <div class="canal-tab" onclick="setCanal('whatsapp', this)">WhatsApp</div>
         <div class="canal-tab" onclick="setCanal('delivery', this)">Delivery</div>
       </div>
+
+      <!-- Buscador -->
+      <div class="buscador-productos">
+        <input type="text" id="buscador-input" placeholder="🔎 Buscar producto..." oninput="renderProductosFiltrados()">
+      </div>
+
+      <!-- Filtro por categoría -->
+      <div class="categoria-filtros" id="categoria-filtros"></div>
 
       <!-- Productos -->
       <div class="productos-grid" id="productos-grid">
@@ -343,6 +434,10 @@
     let productos = []
     let canalActual = 'presencial'
     let idsConocidos = null // null = todavía no cargamos nada; evita alertar en la primera carga
+    let categoriaActual = 'Todos'
+
+    const ORDEN_CATEGORIAS = ['Todos', 'Hamburguesas', 'Papas', 'Bebidas', 'Otros']
+    const ICONO_CATEGORIA = { Todos: '🍽️', Hamburguesas: '🍔', Papas: '🍟', Bebidas: '🥤', Otros: '🧾' }
 
     window.addEventListener('load', () => {
       if (!requireAuth(['caja', 'encargado', 'propietario'], 'caja')) return
@@ -363,12 +458,42 @@
       const data = await api('/api/productos')
       if (!data) return
       productos = data.productos || []
+      renderCategoriaFiltros()
+      renderProductosFiltrados()
+    }
+
+    function renderCategoriaFiltros() {
+      const presentes = ORDEN_CATEGORIAS.filter(c => c === 'Todos' || productos.some(p => (p.categoria || 'Otros') === c))
+      document.getElementById('categoria-filtros').innerHTML = presentes.map(c => `
+        <div class="cat-pill ${c === categoriaActual ? 'active' : ''}" onclick="setCategoria('${c}')">${ICONO_CATEGORIA[c] || ''} ${c}</div>
+      `).join('')
+    }
+
+    function setCategoria(cat) {
+      categoriaActual = cat
+      renderCategoriaFiltros()
+      renderProductosFiltrados()
+    }
+
+    function renderProductosFiltrados() {
       const grid = document.getElementById('productos-grid')
       if (productos.length === 0) {
         grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">Sin productos cargados</div>`
         return
       }
-      grid.innerHTML = productos.map(p => {
+      const busqueda = document.getElementById('buscador-input').value.trim().toLowerCase()
+      const filtrados = productos.filter(p => {
+        const pasaCategoria = categoriaActual === 'Todos' || (p.categoria || 'Otros') === categoriaActual
+        const pasaBusqueda = !busqueda || p.nombre.toLowerCase().includes(busqueda)
+        return pasaCategoria && pasaBusqueda
+      })
+
+      if (filtrados.length === 0) {
+        grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">Sin resultados</div>`
+        return
+      }
+
+      grid.innerHTML = filtrados.map(p => {
         const sinStock = p.disponible !== null && p.disponible <= 0
         const stockClase = p.disponible === null ? '' : p.disponible <= 0 ? 'agotado' : p.disponible <= 5 ? 'bajo' : 'ok'
         const stockTexto = p.disponible === null ? '' : p.disponible <= 0 ? 'Agotado' : `Quedan ${p.disponible}`
@@ -505,6 +630,13 @@
         }
       }
       idsConocidos = new Set(pedidos.map(p => p.id))
+
+      const noCancelados = pedidos.filter(p => p.estado !== 'cancelado')
+      document.getElementById('turno-pedidos').textContent = pedidos.length
+      document.getElementById('turno-vendido').textContent =
+        '$' + noCancelados.reduce((s, p) => s + (p.total || 0), 0).toLocaleString('es-AR')
+      document.getElementById('turno-sinconfirmar').textContent =
+        pedidos.filter(p => p.estado === 'recibido').length
 
       const lista = document.getElementById('pedidos-lista')
       if (pedidos.length === 0) {

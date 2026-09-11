@@ -146,6 +146,42 @@
       font-weight: 700;
       margin-left: 6px;
     }
+
+    /* ── DEMANDA EN PLANCHA: total de unidades a preparar entre todos los pedidos activos ── */
+    .demanda-bar {
+      max-width: 1200px;
+      margin: 16px auto 0;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .demanda-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .demanda-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .demanda-chip b {
+      font-family: var(--font-display);
+      color: var(--accent2);
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -168,6 +204,12 @@
     <div class="filtro-tab" onclick="setFiltro('en_preparacion', this)">En preparación</div>
     <div class="filtro-tab" onclick="setFiltro('listo', this)">Listos</div>
     <div class="filtro-tab" onclick="setFiltro('todos', this)">Todos hoy</div>
+  </div>
+
+  <!-- DEMANDA EN PLANCHA -->
+  <div class="demanda-bar" id="demanda-bar" style="display:none;">
+    <span class="demanda-label">🔥 Demanda en plancha:</span>
+    <div id="demanda-chips" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
   </div>
 
   <!-- PEDIDOS -->
@@ -220,6 +262,30 @@
       document.getElementById('cnt-activos').textContent = activos
 
       renderPedidos()
+      renderDemandaEnPlancha()
+    }
+
+    // Suma las unidades de cada producto entre todos los pedidos en curso —
+    // le sirve a cocina para ver de un vistazo cuánto de cada cosa preparar en bloque.
+    function renderDemandaEnPlancha() {
+      const activos = todosPedidos.filter(p =>
+        ['recibido','confirmado','en_preparacion'].includes(p.estado)
+      )
+      const cont = document.getElementById('demanda-bar')
+      const contador = {}
+      activos.forEach(p => {
+        p.pedido_items?.forEach(i => {
+          const nombre = i.productos?.nombre
+          if (!nombre) return
+          contador[nombre] = (contador[nombre] || 0) + i.cantidad
+        })
+      })
+      const items = Object.entries(contador).sort((a, b) => b[1] - a[1]).slice(0, 6)
+      if (items.length === 0) { cont.style.display = 'none'; return }
+      cont.style.display = 'flex'
+      document.getElementById('demanda-chips').innerHTML = items.map(([nombre, cant]) =>
+        `<span class="demanda-chip"><b>${cant}x</b> ${nombre}</span>`
+      ).join('')
     }
 
     function renderPedidos() {
