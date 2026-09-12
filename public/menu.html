@@ -652,33 +652,73 @@
         .replace(/(^-|-$)/g, '')
     }
 
-    const TAMANOS_BEBIDA = ['500ml', '750ml', '1L']
-    let bebidasPorMarca = {}
+    // Sufijos de variante por categoría — un producto "Clásica Doble" se agrupa
+    // con "Clásica" bajo una sola tarjeta "Clásica" con selector de opciones,
+    // igual que ya se hacía con las marcas de bebida por tamaño.
+    const SUFIJOS_POR_CATEGORIA = {
+      Bebidas: ['500ml', '750ml', '1L'],
+      Hamburguesas: ['Doble', 'Triple'],
+      Papas: ['Chica']
+    }
+    const ETIQUETA_BASE_POR_CATEGORIA = { Papas: 'Normal' } // resto usa "Simple" por defecto
+    let variantesPorBase = {}
 
-    // Separa las variantes de bebida (nombre "Marca 500ml/750ml/1L") en un solo
-    // cartel por marca, para que el menú no se llene de "Coca-Cola 500ml",
-    // "Coca-Cola 750ml", etc. — el tamaño se elige recién al agregar.
-    function agruparBebidas(lista) {
-      bebidasPorMarca = {}
+    function etiquetaBase(categoria) {
+      return ETIQUETA_BASE_POR_CATEGORIA[categoria] || 'Simple'
+    }
+
+    // Agrupa cualquier producto que tenga variantes por sufijo (bebida por tamaño,
+    // hamburguesa por cantidad de carne, papas por porción) en una sola tarjeta
+    // con selector — el resto de los productos se muestra tal cual.
+    function agruparVariantes(lista) {
+      variantesPorBase = {}
       const resto = []
+      const gruposPusheados = new Set()
+
+      // Paso 1: juntar todo lo que termina en un sufijo conocido de su categoría
       lista.forEach(p => {
-        const tamano = TAMANOS_BEBIDA.find(t => p.nombre.endsWith(' ' + t))
-        if (!tamano) { resto.push(p); return }
-        const marca = p.nombre.slice(0, -(tamano.length + 1))
-        if (!bebidasPorMarca[marca]) bebidasPorMarca[marca] = []
-        bebidasPorMarca[marca].push({ ...p, tamano })
+        const sufijos = SUFIJOS_POR_CATEGORIA[p.categoria] || []
+        const sufijo = sufijos.find(s => p.nombre.endsWith(' ' + s))
+        if (!sufijo) return
+        const base = p.nombre.slice(0, -(sufijo.length + 1))
+        const key = p.categoria + '||' + base
+        if (!variantesPorBase[key]) variantesPorBase[key] = []
+        variantesPorBase[key].push({ ...p, etiqueta: sufijo })
       })
-      Object.values(bebidasPorMarca).forEach(variantes =>
-        variantes.sort((a, b) => TAMANOS_BEBIDA.indexOf(a.tamano) - TAMANOS_BEBIDA.indexOf(b.tamano))
-      )
-      const gruposBebida = Object.keys(bebidasPorMarca).map(marca => ({
-        esGrupoBebida: true,
-        marca,
-        categoria: bebidasPorMarca[marca][0].categoria
-      }))
-      return [...resto, ...gruposBebida].sort((a, b) =>
-        (a.nombre || a.marca).localeCompare(b.nombre || b.marca)
-      )
+
+      // Paso 2: el producto sin sufijo es la variante "base" del grupo, si tiene hermanos
+      lista.forEach(p => {
+        const sufijos = SUFIJOS_POR_CATEGORIA[p.categoria] || []
+        const tieneSufijo = sufijos.some(s => p.nombre.endsWith(' ' + s))
+        if (tieneSufijo) return
+        const key = p.categoria + '||' + p.nombre
+        if (variantesPorBase[key]) variantesPorBase[key].unshift({ ...p, etiqueta: etiquetaBase(p.categoria) })
+      })
+
+      // Paso 3: ordenar cada grupo (base primero, después los sufijos en su orden natural)
+      Object.entries(variantesPorBase).forEach(([key, variantes]) => {
+        const categoria = variantes[0].categoria
+        const orden = [etiquetaBase(categoria), ...(SUFIJOS_POR_CATEGORIA[categoria] || [])]
+        variantes.sort((a, b) => orden.indexOf(a.etiqueta) - orden.indexOf(b.etiqueta))
+      })
+
+      // Paso 4: armar la lista final — un marcador de grupo por base, el resto sin cambios
+      lista.forEach(p => {
+        const sufijos = SUFIJOS_POR_CATEGORIA[p.categoria] || []
+        const sufijo = sufijos.find(s => p.nombre.endsWith(' ' + s))
+        const base = sufijo ? p.nombre.slice(0, -(sufijo.length + 1)) : p.nombre
+        const key = p.categoria + '||' + base
+        if (variantesPorBase[key]) {
+          if (!gruposPusheados.has(key)) {
+            gruposPusheados.add(key)
+            resto.push({ esGrupoVariante: true, base, categoria: p.categoria, key })
+          }
+        } else {
+          resto.push(p)
+        }
+      })
+
+      return resto.sort((a, b) => (a.nombre || a.base).localeCompare(b.nombre || b.base))
     }
 
     const ORDEN_CATEGORIAS = ['Hamburguesas', 'Papas', 'Bebidas', 'Otros']
@@ -693,7 +733,7 @@
         grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">El menú no está disponible en este momento</div>`
         return
       }
-      const items = agruparBebidas(productos)
+      const items = agruparVariantes(productos)
 
       const porCategoria = {}
       items.forEach(item => {
@@ -707,7 +747,7 @@
         <div class="categoria-seccion">
           <h2 class="categoria-titulo"><span class="icono-cat">${ICONO_CATEGORIA[cat] || ''}</span> ${cat}</h2>
           <div class="productos-grid">
-            ${porCategoria[cat].map(item => item.esGrupoBebida ? renderTarjetaBebida(item.marca) : renderTarjetaProducto(item)).join('')}
+            ${porCategoria[cat].map(item => item.esGrupoVariante ? renderTarjetaGrupo(item.key, item.base) : renderTarjetaProducto(item)).join('')}
           </div>
         </div>
       `).join('')
@@ -744,46 +784,55 @@
       </div>`
     }
 
-    function renderTarjetaBebida(marca) {
-      const variantes = bebidasPorMarca[marca]
+    const ICONO_POR_CATEGORIA_GRUPO = { Bebidas: '🥤', Hamburguesas: '🍔', Papas: '🍟' }
+    const AYUDA_SELECTOR = { Bebidas: 'Elegí el tamaño', Hamburguesas: 'Elegí la cantidad de carne', Papas: 'Elegí la porción' }
+
+    function renderTarjetaGrupo(key, base) {
+      const variantes = variantesPorBase[key]
+      const categoria = variantes[0].categoria
       const precios = variantes.map(v => Number(v.precio_final))
       const todasSinStock = variantes.every(v => v.disponible !== null && v.disponible <= 0)
-      const img = `/img/productos/${slugify(marca)}.jpg`
+      const img = `/img/productos/${slugify(base)}.jpg`
+      const descripcion = variantes[0].descripcion ||
+        `${AYUDA_SELECTOR[categoria] || 'Elegí una opción'}: ${variantes.map(v => v.etiqueta).join(', ')}`
       return `
       <div class="producto-card ${todasSinStock ? 'sin-stock' : ''}">
         <div class="producto-img">
-          <img src="${img}" alt="${marca}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+          <img src="${img}" alt="${base}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
           <div class="producto-img-fallback" style="display:none;">
-            <span class="icono">🥤</span>
+            <span class="icono">${ICONO_POR_CATEGORIA_GRUPO[categoria] || '🍽️'}</span>
             <span class="texto">Foto próximamente</span>
           </div>
           ${todasSinStock ? '<span class="stock-chip">Agotado</span>' : ''}
         </div>
         <div class="producto-body">
           <div class="producto-head">
-            <span class="nombre">${marca}</span>
+            <span class="nombre">${base}</span>
             <span class="precio">Desde $${Math.min(...precios).toLocaleString('es-AR')}</span>
           </div>
-          <p class="descripcion">Elegí el tamaño: ${variantes.map(v => v.tamano).join(', ')}</p>
+          <p class="descripcion">${descripcion}</p>
           <div class="producto-footer">
             <span class="stock"></span>
             ${todasSinStock
               ? ''
-              : `<button class="btn btn-primary btn-add" onclick="abrirModalTamano('${marca.replace(/'/g, "\\'")}')">+ Agregar</button>`}
+              : `<button class="btn btn-primary btn-add" onclick="abrirModalVariante('${key.replace(/'/g, "\\'")}')">+ Agregar</button>`}
           </div>
         </div>
       </div>`
     }
 
-    function abrirModalTamano(marca) {
-      const variantes = bebidasPorMarca[marca]
-      document.getElementById('tamano-modal-titulo').textContent = marca
-      document.getElementById('tamano-modal-lista').innerHTML = variantes.map(v => {
+    function abrirModalVariante(key) {
+      const variantes = variantesPorBase[key]
+      const categoria = variantes[0].categoria
+      document.getElementById('tamano-modal-titulo').textContent = key.split('||')[1]
+      document.getElementById('tamano-modal-lista').innerHTML = `
+        <p style="margin-bottom:8px;">${AYUDA_SELECTOR[categoria] || 'Elegí una opción'}</p>
+      ` + variantes.map(v => {
         const sinStock = v.disponible !== null && v.disponible <= 0
         return `
         <button class="extra-opcion" style="width:100%;background:none;border:none;text-align:left;color:var(--text);${sinStock ? 'opacity:.4;' : 'cursor:pointer;'}"
-          ${sinStock ? 'disabled' : `onclick="elegirTamano('${v.id}')"`}>
-          <span class="izq">${v.tamano}${sinStock ? ' — sin stock' : ''}</span>
+          ${sinStock ? 'disabled' : `onclick="elegirVariante('${v.id}')"`}>
+          <span class="izq">${v.etiqueta}${sinStock ? ' — sin stock' : ''}</span>
           <span class="precio-extra pago">$${Number(v.precio_final).toLocaleString('es-AR')}</span>
         </button>`
       }).join('')
@@ -794,9 +843,9 @@
       document.getElementById('modal-tamano').style.display = 'none'
     }
 
-    function elegirTamano(productoId) {
+    function elegirVariante(productoId) {
       cerrarModalTamano()
-      agregarAlCarritoConExtras(productoId, [])
+      agregarAlCarrito(productoId)
     }
 
     let productoParaExtras = null
