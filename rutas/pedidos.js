@@ -4,6 +4,7 @@ const PDFDocument = require('pdfkit')
 const { getSupabase } = require('./db')
 const { obtenerDisponibilidad } = require('./stock')
 const { registrarActividad } = require('./actividad')
+const EMPRESA = require('./empresa')
 
 const router = express.Router()
 
@@ -106,94 +107,135 @@ router.get('/:id/factura', auth, async (req, res) => {
   res.setHeader('Content-Disposition', `inline; filename="factura-${factura?.numero_factura ?? pedido.numero_pedido}.pdf"`)
   doc.pipe(res)
 
-  doc.circle(70, 65, 22).fill('#e8832a')
-  doc.fillColor('#1a1108').font('Helvetica-Bold').fontSize(15).text('BP', 58, 56)
-
-  doc.fillColor('#1a1108').font('Helvetica-Bold').fontSize(22).text('BURGER POINT', 105, 45)
-  doc.fillColor('#8a7d6e').font('Helvetica').fontSize(10)
-    .text(factura ? `Factura N° ${String(factura.numero_factura).padStart(6, '0')}` : 'Sin facturar (sin cobro registrado)', 105, 70)
-
-  doc.fillColor('#1a1108').font('Helvetica-Bold').fontSize(14).text(`Pedido #${pedido.numero_pedido}`, 350, 45, { width: 195, align: 'right' })
-  doc.fillColor('#8a7d6e').font('Helvetica').fontSize(9)
-    .text(new Date(factura?.creado_en || pedido.creado_en).toLocaleString('es-AR'), 350, 65, { width: 195, align: 'right' })
-
-  doc.moveTo(50, 105).lineTo(545, 105).strokeColor('#ddd').stroke()
-
-  let y = 122
-  doc.font('Helvetica').fontSize(10).fillColor('#555')
-  doc.text(`Canal: ${pedido.canal}`, 50, y)
-  doc.text(`Estado: ${pedido.estado}`, 300, y)
-  y += 16
-  doc.text(`Atendido por: ${pedido.usuarios?.nombre || (pedido.cliente_nombre ? 'Pedido online' : '—')}`, 50, y)
-  if (cobro) doc.text(`Pago: ${cobro.metodo} (${cobro.estado})`, 300, y)
-  y += 16
-
-  if (pedido.cliente_nombre) {
-    doc.text(`Cliente: ${pedido.cliente_nombre} · ${pedido.cliente_telefono || ''}`, 50, y)
-    y += 16
-    if (pedido.cliente_direccion) {
-      doc.text(`Dirección: ${pedido.cliente_direccion}`, 50, y)
-      y += 16
-    }
+  // Sin cobro todavía no hay factura real (se emite recién en POST /api/cobros) —
+  // no tiene sentido imprimir una Factura A con CAE para un pedido que no se cobró.
+  if (!factura) {
+    doc.font('Helvetica-Bold').fontSize(16).fillColor('#141414').text('Burger Point', 50, 60)
+    doc.font('Helvetica').fontSize(11).fillColor('#5c5c5c')
+      .text(`Pedido #${pedido.numero_pedido} — todavía no fue cobrado`, 50, 90)
+      .text('La factura se emite automáticamente al confirmar el cobro en caja.', 50, 108)
+    doc.end()
+    return
   }
+
+  const fechaEmision = new Date(factura?.creado_en || pedido.creado_en)
+  const numeroComprobante = String(factura?.numero_factura ?? pedido.numero_pedido).padStart(8, '0')
+
+  // Neto/IVA discriminados a partir del total final (los precios del menú ya incluyen IVA) —
+  // es lo que distingue a la Factura A de la B, que no discrimina el impuesto.
+  const neto = total / 1.21
+  const iva  = total - neto
+
+  // CAE de demostración: no hay inscripción real en ARCA/AFIP para este proyecto,
+  // así que se genera un número con formato válido (14 dígitos) pero sin validez fiscal.
+  const cae = '70' + numeroComprobante.padStart(12, '0')
+  const caeVencimiento = new Date(fechaEmision.getTime() + 10 * 24 * 60 * 60 * 1000)
+  const fechaDDMMYYYY = f => `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}/${f.getFullYear()}`
+
+  const NEGRO = '#141414', GRIS = '#5c5c5c', GRIS_CLARO = '#999'
+  const IZQ = 50, DER = 545, ANCHO = DER - IZQ
+
+  // ── ENCABEZADO: emisor / letra "A" / datos del comprobante ──
+  doc.font('Helvetica-Bold').fontSize(15).fillColor(NEGRO).text(EMPRESA.razonSocial, IZQ, 48, { width: 245 })
+  doc.font('Helvetica').fontSize(8.5).fillColor(GRIS)
+    .text(`Domicilio Comercial: ${EMPRESA.domicilio}`, IZQ, 68, { width: 245 })
+    .text(`Condición frente al IVA: ${EMPRESA.condicionIva}`, IZQ, 80, { width: 245 })
+
+  doc.rect(280, 45, 38, 48).strokeColor(NEGRO).lineWidth(1).stroke()
+  doc.font('Helvetica-Bold').fontSize(26).fillColor(NEGRO).text('A', 280, 55, { width: 38, align: 'center' })
+  doc.font('Helvetica').fontSize(7).text('COD. 01', 280, 87, { width: 38, align: 'center' })
+
+  doc.font('Helvetica-Bold').fontSize(16).fillColor(NEGRO).text('FACTURA', 340, 48, { width: 205, align: 'right' })
+  doc.font('Helvetica').fontSize(8.5).fillColor(GRIS)
+    .text(`Punto de Venta: ${EMPRESA.puntoVenta}   Comp. Nro: ${numeroComprobante}`, 340, 68, { width: 205, align: 'right' })
+    .text(`Fecha de Emisión: ${fechaDDMMYYYY(fechaEmision)}`, 340, 80, { width: 205, align: 'right' })
+
+  doc.font('Helvetica').fontSize(8.5).fillColor(GRIS)
+    .text(`CUIT: ${EMPRESA.cuit}    Ingresos Brutos: ${EMPRESA.ingresosBrutos}    Inicio de Actividades: ${EMPRESA.inicioActividades}`, IZQ, 112, { width: ANCHO })
+
+  doc.moveTo(IZQ, 130).lineTo(DER, 130).strokeColor('#ccc').lineWidth(1).stroke()
+
+  // ── RECEPTOR ──
+  const tieneCliente = !!pedido.cliente_nombre
+  let y = 142
+  doc.font('Helvetica').fontSize(9).fillColor(GRIS)
+  doc.text(`CUIT/CUIL: ${tieneCliente ? 'No informado' : '—'}`, IZQ, y); y += 14
+  doc.text(`Apellido y Nombre / Razón Social: ${pedido.cliente_nombre || 'Consumidor Final'}`, IZQ, y); y += 14
+  doc.text('Condición frente al IVA: Consumidor Final', IZQ, y); y += 14
+  doc.text(`Domicilio: ${pedido.cliente_direccion || '—'}`, IZQ, y); y += 14
+  doc.text(`Condición de venta: Contado${pedido.canal === 'delivery' ? ' (envío a domicilio)' : ''}`, IZQ, y); y += 20
+
+  doc.moveTo(IZQ, y).lineTo(DER, y).strokeColor('#ccc').stroke()
   y += 16
 
-  doc.font('Helvetica-Bold').fontSize(10).fillColor('#1a1108')
-  doc.text('Cant', 50, y)
-  doc.text('Producto', 90, y)
-  doc.text('P. Unit', 350, y, { width: 80, align: 'right' })
-  doc.text('Subtotal', 450, y, { width: 95, align: 'right' })
-  y += 15
-  doc.moveTo(50, y).lineTo(545, y).strokeColor('#ddd').stroke()
+  // ── DETALLE ──
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(NEGRO)
+  doc.text('Cant.', IZQ, y, { width: 40 })
+  doc.text('Producto / Servicio', IZQ + 45, y, { width: 260 })
+  doc.text('P. Unitario', IZQ + 305, y, { width: 90, align: 'right' })
+  doc.text('Subtotal', IZQ + 395, y, { width: 100, align: 'right' })
+  y += 14
+  doc.moveTo(IZQ, y).lineTo(DER, y).strokeColor('#ccc').stroke()
   y += 10
 
-  doc.font('Helvetica').fontSize(10).fillColor('#333')
+  doc.font('Helvetica').fontSize(9).fillColor('#333')
   pedido.pedido_items?.forEach(item => {
     const subtotal = item.cantidad * Number(item.precio_unitario)
-    doc.text(String(item.cantidad), 50, y)
-    doc.text(item.productos?.nombre || 'Producto', 90, y, { width: 250 })
-    doc.text(`$${Number(item.precio_unitario).toLocaleString('es-AR')}`, 350, y, { width: 80, align: 'right' })
-    doc.text(`$${subtotal.toLocaleString('es-AR')}`, 450, y, { width: 95, align: 'right' })
-    y += 18
+    doc.text(String(item.cantidad), IZQ, y, { width: 40 })
+    doc.text(item.productos?.nombre || 'Producto', IZQ + 45, y, { width: 260 })
+    doc.text(`$${Number(item.precio_unitario).toLocaleString('es-AR')}`, IZQ + 305, y, { width: 90, align: 'right' })
+    doc.text(`$${subtotal.toLocaleString('es-AR')}`, IZQ + 395, y, { width: 100, align: 'right' })
+    y += 15
     if (item.pedido_item_extras?.length) {
       const listaExtras = item.pedido_item_extras.map(e => Number(e.precio) > 0 ? `${e.nombre} (+$${Number(e.precio).toLocaleString('es-AR')})` : e.nombre).join(', ')
-      doc.fillColor('#888').fontSize(9).text(`+ ${listaExtras}`, 90, y, { width: 250 })
-      doc.fillColor('#333').fontSize(10)
-      y += 14
+      doc.fillColor(GRIS_CLARO).fontSize(8).text(`+ ${listaExtras}`, IZQ + 45, y, { width: 260 })
+      doc.fillColor('#333').fontSize(9)
+      y += 13
     }
     if (item.observacion) {
-      doc.fillColor('#e8832a').fontSize(9).text(`⚠ ${item.observacion}`, 90, y, { width: 250 })
-      doc.fillColor('#333').fontSize(10)
-      y += 16
+      doc.fillColor(GRIS_CLARO).fontSize(8).text(`Nota: ${item.observacion}`, IZQ + 45, y, { width: 260 })
+      doc.fillColor('#333').fontSize(9)
+      y += 13
     }
   })
 
-  doc.moveTo(50, y).lineTo(545, y).strokeColor('#ddd').stroke()
+  y += 6
+  doc.moveTo(IZQ, y).lineTo(DER, y).strokeColor('#ccc').stroke()
   y += 12
-  doc.font('Helvetica-Bold').fontSize(13).fillColor('#1a1108')
-  doc.text('TOTAL', 350, y, { width: 80, align: 'right' })
-  doc.text(`$${total.toLocaleString('es-AR')}`, 450, y, { width: 95, align: 'right' })
+
+  // ── TOTALES CON IVA DISCRIMINADO (lo característico de la Factura A) ──
+  doc.font('Helvetica').fontSize(9.5).fillColor(GRIS)
+  doc.text('Importe Neto Gravado:', IZQ + 250, y, { width: 175, align: 'left' })
+  doc.text(`$${neto.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, IZQ + 395, y, { width: 100, align: 'right' })
+  y += 15
+  doc.text('IVA 21%:', IZQ + 250, y, { width: 175, align: 'left' })
+  doc.text(`$${iva.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, IZQ + 395, y, { width: 100, align: 'right' })
+  y += 15
+  doc.text('Importe Otros Tributos:', IZQ + 250, y, { width: 175, align: 'left' })
+  doc.text('$0,00', IZQ + 395, y, { width: 100, align: 'right' })
+  y += 18
+  doc.moveTo(IZQ + 250, y).lineTo(DER, y).strokeColor(NEGRO).stroke()
+  y += 8
+  doc.font('Helvetica-Bold').fontSize(12).fillColor(NEGRO)
+  doc.text('Importe Total:', IZQ + 250, y, { width: 175, align: 'left' })
+  doc.text(`$${total.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, IZQ + 395, y, { width: 100, align: 'right' })
   y += 34
 
   if (pedido.observaciones) {
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#1a1108').text('Observaciones:', 50, y)
-    y += 14
-    doc.font('Helvetica').fontSize(10).fillColor('#555').text(pedido.observaciones, 50, y, { width: 495 })
-    y += 28
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(NEGRO).text('Observaciones:', IZQ, y)
+    y += 13
+    doc.font('Helvetica').fontSize(9).fillColor(GRIS).text(pedido.observaciones, IZQ, y, { width: ANCHO })
+    y += 26
   }
 
-  if (pedido.incidencias?.length) {
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#d94f3d').text('Incidencias registradas:', 50, y)
-    y += 14
-    doc.font('Helvetica').fontSize(9).fillColor('#555')
-    pedido.incidencias.forEach(inc => {
-      doc.text(`• ${inc.tipo}: ${inc.descripcion || ''} (${new Date(inc.creado_en).toLocaleString('es-AR')})`, 55, y, { width: 490 })
-      y += 14
-    })
-  }
+  // ── CAE (Código de Autorización Electrónico) ──
+  doc.rect(IZQ, y, ANCHO, 34).strokeColor('#ccc').stroke()
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(NEGRO).text(`CAE N°: ${cae}`, IZQ + 10, y + 9)
+  doc.font('Helvetica').fontSize(9).fillColor(GRIS)
+    .text(`Fecha de Vto. de CAE: ${fechaDDMMYYYY(caeVencimiento)}`, IZQ + 260, y + 9, { width: 225, align: 'right' })
 
-  doc.font('Helvetica').fontSize(9).fillColor('#8a7d6e')
-    .text('Gracias por elegir Burger Point', 50, 780, { width: 495, align: 'center' })
+  doc.font('Helvetica').fontSize(7.5).fillColor(GRIS_CLARO)
+    .text('Comprobante de uso académico/demostrativo — generado para el proyecto Burger Point, no válido como factura fiscal ante ARCA.', IZQ, 750, { width: ANCHO, align: 'center' })
 
   doc.end()
 })
