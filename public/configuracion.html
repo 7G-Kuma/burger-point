@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Burger Point — Configuración</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="stylesheet" href="/css/estilos.css">
+  <style>
+    .config-secciones { display: flex; flex-direction: column; gap: 20px; }
+    .config-card-header { margin-bottom: 16px; }
+    .config-card-header h2 { font-size: 15px; }
+    .config-card-header p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 560px) { .config-grid { grid-template-columns: 1fr; } }
+    .config-grid .full { grid-column: 1 / -1; }
+    .logo-preview { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+    .logo-preview img { width: 44px; height: 44px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); object-fit: contain; }
+    .color-row { display: flex; align-items: center; gap: 10px; }
+    .color-row input[type="color"] { width: 44px; height: 40px; padding: 2px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); cursor: pointer; }
+    .color-row input[type="text"] { flex: 1; }
+    .info-box {
+      background: rgba(255,107,0,0.08);
+      border: 1px solid rgba(255,107,0,0.25);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <span class="navbar-brand"><img src="/img/logo.svg" data-marca-logo alt=""> <span data-marca-nombre>BURGER <span class="point">POINT</span></span><span class="navbar-subtitle"> · Configuración</span></span>
+    <div id="nav-switcher"></div>
+    <div class="navbar-right">
+      <span class="navbar-role" id="nombre-usuario"></span>
+      <button class="btn btn-secondary" onclick="cerrarSesion()" style="padding:6px 14px;font-size:13px;">Salir</button>
+    </div>
+  </nav>
+
+  <div class="main-content" style="max-width:720px;">
+    <div class="page-header">
+      <div>
+        <h1>Configuración del negocio</h1>
+        <p style="margin-top:4px;">Marca, logo y datos fiscales — se usan en todo el sistema y en la factura</p>
+      </div>
+    </div>
+
+    <div class="info-box">
+      💡 Esto es lo único que hay que completar para adaptar el sistema a otro negocio: nombre, logo y datos fiscales. No hace falta tocar ninguna pantalla — se pinta solo en el menú, el navbar y la factura.
+    </div>
+
+    <form id="form-negocio" class="config-secciones">
+      <div class="card">
+        <div class="config-card-header">
+          <h2>🎨 Marca</h2>
+          <p>Cómo se ve el negocio de cara al cliente</p>
+        </div>
+        <div class="config-grid">
+          <div class="input-group full">
+            <label>Nombre de fantasía</label>
+            <input type="text" id="nombre_fantasia" required maxlength="60">
+          </div>
+          <div class="input-group full">
+            <label>Tagline del menú digital</label>
+            <input type="text" id="tagline" required maxlength="160">
+          </div>
+          <div class="input-group full">
+            <label>URL del logo</label>
+            <input type="text" id="logo_url" required placeholder="/img/logo.svg o https://...">
+            <div class="logo-preview">
+              <img id="preview-logo" src="/img/logo.svg" alt="Vista previa del logo">
+              <span style="font-size:12px;color:var(--text-muted);">Vista previa</span>
+            </div>
+          </div>
+          <div class="input-group full">
+            <label>Color de acento</label>
+            <div class="color-row">
+              <input type="color" id="color_acento_picker">
+              <input type="text" id="color_acento" required pattern="^#[0-9a-fA-F]{6}$" placeholder="#ff6b00">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="config-card-header">
+          <h2>🧾 Datos fiscales (factura)</h2>
+          <p>Se imprimen en la Factura A que descarga caja — son datos de demostración, no requieren CUIT real</p>
+        </div>
+        <div class="config-grid">
+          <div class="input-group full">
+            <label>Razón social</label>
+            <input type="text" id="razon_social" required maxlength="80">
+          </div>
+          <div class="input-group">
+            <label>CUIT</label>
+            <input type="text" id="cuit" required maxlength="20">
+          </div>
+          <div class="input-group">
+            <label>Ingresos Brutos</label>
+            <input type="text" id="ingresos_brutos" required maxlength="20">
+          </div>
+          <div class="input-group full">
+            <label>Domicilio comercial</label>
+            <input type="text" id="domicilio" required maxlength="120">
+          </div>
+          <div class="input-group">
+            <label>Condición frente al IVA</label>
+            <input type="text" id="condicion_iva" required maxlength="40">
+          </div>
+          <div class="input-group">
+            <label>Inicio de actividades</label>
+            <input type="text" id="inicio_actividades" required placeholder="dd/mm/aaaa" maxlength="10">
+          </div>
+          <div class="input-group">
+            <label>Punto de venta</label>
+            <input type="text" id="punto_venta" required maxlength="6">
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" id="btn-guardar">Guardar cambios</button>
+    </form>
+  </div>
+
+  <div id="toast"></div>
+  <script src="/app.js"></script>
+  <script>
+    const CAMPOS = [
+      'nombre_fantasia', 'tagline', 'logo_url', 'color_acento',
+      'razon_social', 'cuit', 'domicilio', 'condicion_iva',
+      'ingresos_brutos', 'inicio_actividades', 'punto_venta'
+    ]
+
+    window.addEventListener('load', () => {
+      if (!requireAuth(['propietario'])) return
+      renderNavSwitcher()
+      const usuario = getUsuario()
+      document.getElementById('nombre-usuario').textContent = usuario.nombre
+      cargarNegocio()
+
+      document.getElementById('logo_url').addEventListener('input', e => {
+        document.getElementById('preview-logo').src = e.target.value
+      })
+      document.getElementById('color_acento_picker').addEventListener('input', e => {
+        document.getElementById('color_acento').value = e.target.value
+      })
+      document.getElementById('color_acento').addEventListener('input', e => {
+        if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+          document.getElementById('color_acento_picker').value = e.target.value
+        }
+      })
+      document.getElementById('form-negocio').addEventListener('submit', guardar)
+    })
+
+    async function cargarNegocio() {
+      const res = await fetch('/api/negocio')
+      const n = await res.json()
+      CAMPOS.forEach(campo => {
+        const el = document.getElementById(campo)
+        if (el) el.value = n[campo] || ''
+      })
+      document.getElementById('preview-logo').src = n.logo_url
+      document.getElementById('color_acento_picker').value = n.color_acento
+    }
+
+    async function guardar(e) {
+      e.preventDefault()
+      const btn = document.getElementById('btn-guardar')
+      btn.disabled = true
+      btn.textContent = 'Guardando...'
+
+      const body = {}
+      CAMPOS.forEach(campo => { body[campo] = document.getElementById(campo).value.trim() })
+
+      const data = await api('/api/negocio', { method: 'PATCH', body: JSON.stringify(body) })
+
+      btn.disabled = false
+      btn.textContent = 'Guardar cambios'
+
+      if (data?.error) {
+        toast(data.error, 'danger')
+        return
+      }
+      toast('Configuración guardada ✓', 'ok')
+      aplicarMarca()
+    }
+  </script>
+</body>
+</html>

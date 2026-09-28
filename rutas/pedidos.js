@@ -4,7 +4,6 @@ const PDFDocument = require('pdfkit')
 const { getSupabase } = require('./db')
 const { obtenerDisponibilidad } = require('./stock')
 const { registrarActividad } = require('./actividad')
-const EMPRESA = require('./empresa')
 
 const router = express.Router()
 
@@ -98,6 +97,8 @@ router.get('/:id/factura', auth, async (req, res) => {
 
   if (error || !pedido) return res.status(404).json({ error: 'Pedido no encontrado' })
 
+  const { data: EMPRESA } = await supabase.from('negocio').select('*').eq('id', true).single()
+
   const total = pedido.pedido_items?.reduce((s, i) => s + i.cantidad * Number(i.precio_unitario), 0) || 0
   const cobro = pedido.cobros?.[0]
   const factura = pedido.facturas?.[0]
@@ -110,7 +111,7 @@ router.get('/:id/factura', auth, async (req, res) => {
   // Sin cobro todavía no hay factura real (se emite recién en POST /api/cobros) —
   // no tiene sentido imprimir una Factura A con CAE para un pedido que no se cobró.
   if (!factura) {
-    doc.font('Helvetica-Bold').fontSize(16).fillColor('#141414').text('Burger Point', 50, 60)
+    doc.font('Helvetica-Bold').fontSize(16).fillColor('#141414').text(EMPRESA?.nombre_fantasia || 'Negocio', 50, 60)
     doc.font('Helvetica').fontSize(11).fillColor('#5c5c5c')
       .text(`Pedido #${pedido.numero_pedido} — todavía no fue cobrado`, 50, 90)
       .text('La factura se emite automáticamente al confirmar el cobro en caja.', 50, 108)
@@ -136,10 +137,10 @@ router.get('/:id/factura', auth, async (req, res) => {
   const IZQ = 50, DER = 545, ANCHO = DER - IZQ
 
   // ── ENCABEZADO: emisor / letra "A" / datos del comprobante ──
-  doc.font('Helvetica-Bold').fontSize(15).fillColor(NEGRO).text(EMPRESA.razonSocial, IZQ, 48, { width: 245 })
+  doc.font('Helvetica-Bold').fontSize(15).fillColor(NEGRO).text(EMPRESA.razon_social, IZQ, 48, { width: 245 })
   doc.font('Helvetica').fontSize(8.5).fillColor(GRIS)
     .text(`Domicilio Comercial: ${EMPRESA.domicilio}`, IZQ, 68, { width: 245 })
-    .text(`Condición frente al IVA: ${EMPRESA.condicionIva}`, IZQ, 80, { width: 245 })
+    .text(`Condición frente al IVA: ${EMPRESA.condicion_iva}`, IZQ, 80, { width: 245 })
 
   doc.rect(280, 45, 38, 48).strokeColor(NEGRO).lineWidth(1).stroke()
   doc.font('Helvetica-Bold').fontSize(26).fillColor(NEGRO).text('A', 280, 55, { width: 38, align: 'center' })
@@ -147,11 +148,11 @@ router.get('/:id/factura', auth, async (req, res) => {
 
   doc.font('Helvetica-Bold').fontSize(16).fillColor(NEGRO).text('FACTURA', 340, 48, { width: 205, align: 'right' })
   doc.font('Helvetica').fontSize(8.5).fillColor(GRIS)
-    .text(`Punto de Venta: ${EMPRESA.puntoVenta}   Comp. Nro: ${numeroComprobante}`, 340, 68, { width: 205, align: 'right' })
+    .text(`Punto de Venta: ${EMPRESA.punto_venta}   Comp. Nro: ${numeroComprobante}`, 340, 68, { width: 205, align: 'right' })
     .text(`Fecha de Emisión: ${fechaDDMMYYYY(fechaEmision)}`, 340, 80, { width: 205, align: 'right' })
 
   doc.font('Helvetica').fontSize(8.5).fillColor(GRIS)
-    .text(`CUIT: ${EMPRESA.cuit}    Ingresos Brutos: ${EMPRESA.ingresosBrutos}    Inicio de Actividades: ${EMPRESA.inicioActividades}`, IZQ, 112, { width: ANCHO })
+    .text(`CUIT: ${EMPRESA.cuit}    Ingresos Brutos: ${EMPRESA.ingresos_brutos}    Inicio de Actividades: ${EMPRESA.inicio_actividades}`, IZQ, 112, { width: ANCHO })
 
   doc.moveTo(IZQ, 130).lineTo(DER, 130).strokeColor('#ccc').lineWidth(1).stroke()
 

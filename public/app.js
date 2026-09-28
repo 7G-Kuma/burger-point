@@ -1,5 +1,60 @@
 // ── HELPERS GLOBALES ── //
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// Aclara un color hex un porcentaje `amt` (0-1) hacia blanco — se usa para
+// derivar el acento secundario a partir del color de marca configurado.
+function aclararColor(hex, amt) {
+  const n = parseInt(hex.replace('#', ''), 16)
+  if (Number.isNaN(n)) return hex
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+  r = Math.min(255, Math.round(r + (255 - r) * amt))
+  g = Math.min(255, Math.round(g + (255 - g) * amt))
+  b = Math.min(255, Math.round(b + (255 - b) * amt))
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')
+}
+
+// Pinta la marca del negocio (nombre, logo, tagline, color) leída de
+// /api/negocio en cualquier elemento marcado con data-marca-*. Se llama sola
+// al cargar cada página — así ninguna pantalla necesita wiring propio para
+// que el sistema se pueda revender a otra hamburguesería sin tocar HTML/CSS,
+// solo completando /configuracion.html.
+window.NEGOCIO = null
+
+async function aplicarMarca() {
+  try {
+    const res = await fetch('/api/negocio')
+    if (!res.ok) return
+    const n = await res.json()
+    window.NEGOCIO = n
+
+    document.querySelectorAll('[data-marca-nombre]').forEach(el => {
+      const partes = n.nombre_fantasia.trim().split(/\s+/)
+      const ultima = partes.pop()
+      el.innerHTML = partes.length
+        ? `${escapeHtml(partes.join(' '))} <span class="point">${escapeHtml(ultima)}</span>`
+        : `<span class="point">${escapeHtml(ultima)}</span>`
+    })
+    document.querySelectorAll('[data-marca-logo]').forEach(el => { el.src = n.logo_url })
+    document.querySelectorAll('[data-marca-tagline]').forEach(el => { el.textContent = n.tagline })
+
+    if (document.title.includes('Burger Point')) {
+      document.title = document.title.replace('Burger Point', n.nombre_fantasia)
+    }
+
+    if (n.color_acento) {
+      document.documentElement.style.setProperty('--accent', n.color_acento)
+      document.documentElement.style.setProperty('--accent2', aclararColor(n.color_acento, 0.25))
+    }
+  } catch {
+    // Sin conexión a /api/negocio la página se queda con los valores por
+    // defecto del HTML ("Burger Point") — no rompe nada, solo no se rebrandea.
+  }
+}
+document.addEventListener('DOMContentLoaded', aplicarMarca)
+
 // Muestra un toast (notificación emergente)
 function toast(mensaje, tipo = 'ok') {
   const t = document.getElementById('toast')
@@ -164,6 +219,7 @@ function renderNavSwitcher() {
 
   if (usuario.rol === 'propietario') {
     gestion.push({ href: '/permisos.html', icono: '🔐', label: 'Permisos' })
+    gestion.push({ href: '/configuracion.html', icono: '⚙️', label: 'Configuración' })
   }
 
   const actual = location.pathname

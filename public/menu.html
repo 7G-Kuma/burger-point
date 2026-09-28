@@ -314,8 +314,8 @@
 
   <div class="menu-nav">
     <div class="menu-nav-brand">
-      <img src="/img/logo.svg" alt="">
-      <span>BURGER <span class="point">POINT</span></span>
+      <img src="/img/logo.svg" data-marca-logo alt="">
+      <span><span data-marca-nombre>BURGER <span class="point">POINT</span></span></span>
     </div>
     <div class="menu-nav-links">
       <a href="#" id="link-mi-cuenta" onclick="abrirModalCuenta();return false;">👤 Mi cuenta</a>
@@ -334,9 +334,9 @@
 
   <div class="menu-hero">
     <span class="menu-hero-eyebrow">🔥 Fuego vivo &amp; smash artesanal</span>
-    <img src="/img/logo.svg" alt="" class="menu-hero-logo">
-    <h1>BURGER <span class="point">POINT</span></h1>
-    <p class="menu-hero-tagline">Hamburguesas de autor hechas al momento, con carne smasheada en plancha y pan de masa madre horneado a diario.</p>
+    <img src="/img/logo.svg" data-marca-logo alt="" class="menu-hero-logo">
+    <h1><span data-marca-nombre>BURGER <span class="point">POINT</span></span></h1>
+    <p class="menu-hero-tagline" data-marca-tagline>Hamburguesas de autor hechas al momento, con carne smasheada en plancha y pan de masa madre horneado a diario.</p>
   </div>
 
   <div class="layout">
@@ -1013,7 +1013,7 @@
           <div style="font-size:40px;">✅</div>
           <p>¡Pedido recibido!</p>
           <div class="num">#${numero}</div>
-          <p style="margin-bottom:16px;">Ya le avisamos a Burger Point — te va a llegar una confirmación.</p>
+          <p style="margin-bottom:16px;">Ya le avisamos a ${window.NEGOCIO?.nombre_fantasia || 'la cocina'} — te va a llegar una confirmación.</p>
           <a class="btn btn-primary btn-full" href="/seguimiento.html?numero=${numero}">Seguir mi pedido</a>
           <button class="btn btn-secondary btn-full mt-8" onclick="location.reload()">Hacer otro pedido</button>
         </div>

@@ -1,12 +1,23 @@
 const express  = require('express')
 const bcrypt   = require('bcrypt')
 const jwt      = require('jsonwebtoken')
+const rateLimit = require('express-rate-limit')
 const { getSupabase } = require('./db')
 
 const router = express.Router()
 
+// Máximo 10 intentos de login por IP cada 15 minutos — sin esto, nada impide
+// probar contraseñas por fuerza bruta contra /api/auth/login.
+const limitadorLogin = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos. Probá de nuevo en unos minutos.' }
+})
+
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', limitadorLogin, async (req, res) => {
   const { email, password } = req.body
 
   if (!email || !password) {
@@ -23,15 +34,19 @@ router.post('/login', async (req, res) => {
       .eq('activo', true)
       .limit(1)
 
+    // Mismo mensaje para "no existe" y "contraseña incorrecta" — a propósito,
+    // para no dejarle a un atacante confirmar qué emails están dados de alta.
+    const CREDENCIALES_INVALIDAS = { error: 'Email o contraseña incorrectos' }
+
     if (error || !usuarios || usuarios.length === 0) {
-      return res.status(401).json({ error: 'Usuario no encontrado' })
+      return res.status(401).json(CREDENCIALES_INVALIDAS)
     }
 
     const usuario = usuarios[0]
     const ok = await bcrypt.compare(password, usuario.password_hash)
 
     if (!ok) {
-      return res.status(401).json({ error: 'Contraseña incorrecta' })
+      return res.status(401).json(CREDENCIALES_INVALIDAS)
     }
 
     const token = jwt.sign(
