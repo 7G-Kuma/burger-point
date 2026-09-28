@@ -724,13 +724,35 @@
     const ORDEN_CATEGORIAS = ['Hamburguesas', 'Papas', 'Bebidas', 'Otros']
     const ICONO_CATEGORIA = { Hamburguesas: '🍔', Papas: '🍟', Bebidas: '🥤', Otros: '🍽️' }
 
-    async function cargarMenu() {
-      const res = await fetch('/api/menu')
-      const data = await res.json()
-      productos = data.productos || []
+    // El plan free de Supabase se pausa solo tras un tiempo sin tráfico —
+    // el primer request del día puede tardar hasta ~1 minuto en responder
+    // mientras se reactiva. En vez de mostrar "no disponible" (que suena a
+    // que el sistema está roto justo cuando alguien lo abre por primera
+    // vez), se reintenta solo unas cuantas veces con un mensaje que explica
+    // la espera.
+    async function cargarMenu(intento = 0) {
       const grid = document.getElementById('productos-grid')
+      let res, data
+      try {
+        res = await fetch('/api/menu')
+        data = await res.json()
+      } catch {
+        res = null
+      }
+
+      if (!res || !res.ok) {
+        if (intento < 12) {
+          grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">⏳ Estamos arrancando el sistema, puede tardar hasta un minuto la primera vez del día...</div>`
+          setTimeout(() => cargarMenu(intento + 1), 5000)
+          return
+        }
+        grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">No pudimos cargar el menú. Recargá la página en unos segundos.</div>`
+        return
+      }
+
+      productos = data.productos || []
       if (productos.length === 0) {
-        grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">El menú no está disponible en este momento</div>`
+        grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">Por ahora no hay productos cargados en el menú.</div>`
         return
       }
       const items = agruparVariantes(productos)
