@@ -336,12 +336,4 @@ El usuario pidió cerrar el pendiente de las 5 fotos de bebida (Coca-Cola, Coca-
 
 ## Credenciales de desarrollo (seed)
 
-| Rol | Email | Password |
-|-----|-------|----------|
-| Propietario | admin@burgerpoint.com | admin1234 |
-| Caja (María) | caja@burgerpoint.com | test1234 *(reseteada para pruebas el 2026-09-03)* |
-| Cocina (Carola) | cocina@burgerpoint.com | test1234 *(reseteada para pruebas el 2026-09-03)* |
-| Reparto (Juan) | reparto@burgerpoint.com | test1234 *(reseteada para pruebas el 2026-09-03)* |
-| Encargado | encargado@burgerpoint.com | test1234 *(usuario creado el 2026-09-11, a pedido del usuario para tener las 5 credenciales)* |
-
-Estas son las únicas credenciales reales que existen — no hay una por cada empleado, es una cuenta demo por rol. Si en algún momento se necesitan usuarios reales por persona, hay que darlos de alta desde Supabase (no hay una pantalla de alta de usuarios en el sistema todavía).
+✅ **Movidas a `CREDENCIALES.md` (2026-09-29)**: el repo es público y este archivo también, así que las contraseñas reales de las 5 cuentas demo se sacaron de acá y quedaron en `CREDENCIALES.md` — que está en `.gitignore` a propósito, para no tenerlas a la vista de cualquiera que entre al repo desde LinkedIn u otro lado. Los roles son los mismos de siempre: propietario, caja, cocina, reparto, encargado — una cuenta demo por rol, no una por empleado.
