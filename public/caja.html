@@ -303,7 +303,7 @@
     .cart-bar .total { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--ok); }
 
     @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
+      .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; gap: 16px; }
       .cart-bar.visible { display: flex; }
       #carrito-col { padding-bottom: 70px; }
       .qty-btn { width: 34px; height: 34px; font-size: 16px; }

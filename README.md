@@ -20,7 +20,18 @@ No es un mockup ni un prototipo: **cada pantalla habla con una base de datos rea
 
 ## Capturas
 
-> _Se agregan en la próxima actualización — mientras tanto, la [demo en vivo](https://burger-point-vtlu.onrender.com) muestra el sistema real._
+<p align="center">
+  <img src="docs/capturas/menu-pedido-celular.png" width="230" alt="El cliente arma su pedido desde el celular">
+  <img src="docs/capturas/seguimiento-celular.png" width="230" alt="El cliente sigue su pedido en tiempo real">
+  <img src="docs/capturas/cocina-celular.png" width="230" alt="Cocina, desde un celular o tablet">
+</p>
+<p align="center"><sub>Del celular del cliente a la cocina: el pedido, su seguimiento y la pantalla de cocina.</sub></p>
+
+<p align="center">
+  <img src="docs/capturas/panel-escritorio.png" width="460" alt="Panel del dueño">
+  <img src="docs/capturas/reportes-escritorio.png" width="460" alt="Reportes de ventas">
+</p>
+<p align="center"><sub>Panel del dueño con ventas y alertas en vivo, y reportes por período y canal.</sub></p>
 
 ## Funcionalidades principales
 
@@ -41,6 +52,10 @@ No es un mockup ni un prototipo: **cada pantalla habla con una base de datos rea
 - Inventario con historial de ingresos, precios y promociones editables, registro de clientes con detección de frecuentes/cumpleaños
 - Permisos granulares por sección para el rol de encargado
 - **Marca 100% configurable** (`/configuracion.html`): nombre, logo, color y datos fiscales del negocio se editan desde la interfaz, sin tocar código — pensado para poder adaptar el mismo sistema a otro negocio
+
+## Se adapta al tamaño del local
+
+No hace falta una pantalla por puesto. Funciona en cualquier navegador (celular, tablet o PC), y **Caja sola puede llevar un pedido de punta a punta**: pasarlo a cocina, marcarlo listo y entregado. Un local chico puede trabajar con un único celular; si crece, cada puesto (caja, cocina, reparto) suma su propio dispositivo y su propio usuario, sin cambiar nada del sistema.
 
 ## Stack técnico
 
